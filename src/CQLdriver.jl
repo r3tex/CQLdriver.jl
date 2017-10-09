@@ -1,9 +1,10 @@
 module CQLdriver
 
-export cqlinit, cqlclose, cqlbatchwrite, cqlasyncwrite, cqlread
+export cqlinit, cqlclose, cqlwrite, cqlread
 
+using DataFrames
 include("cqlwrapper.jl")
-const CQL_OK = 0
+const CQL_OK = 0x0000
 
 function Base.size(result::Ptr{CassResult})
     rows = cql_result_row_count(result)   
@@ -89,32 +90,31 @@ function cqlgetvalue(val::Ptr{CassValue}, T::DataType, strlen::Int)
     if T == Int64
         num = Ref{Clonglong}(0)
         err = cql_value_get_int64(val, num)
-        out = ifelse(err == CQL_OK, num[], Int64(0))
+        out = ifelse(err == CQL_OK, num[], NA)
     elseif T == Int32
         num = Ref{Cint}(0)
         err = cql_value_get_int32(val, num)
-        out = ifelse(err == CQL_OK, num[], Int32(0))
+        out = ifelse(err == CQL_OK, num[], NA)
     elseif T == String
         str = zeros(Vector{UInt8}(strlen))
         strref = Ref{Ptr{UInt8}}(pointer(str))
         siz = pointer_from_objref(sizeof(str))
         err = cql_value_get_string(val, strref, siz)
-        out = ifelse(err == CQL_OK, unsafe_string(strref[]), "")
+        out = ifelse(err == CQL_OK, unsafe_string(strref[]), NA)
     elseif T == Float64
         num = Ref{Cdouble}(0)
         err = cql_value_get_float(val, num)
-        out = ifelse(err == CQL_OK, num[], 0.0)
+        out = ifelse(err == CQL_OK, num[], NA)
     elseif T == DateTime
         unixtime = Ref{Clonglong}(0)
         err = cql_value_get_int64(val, unixtime)
-        time = ifelse(err == CQL_OK, unixtime[]/1000, 0)
-        out = Dates.unix2datetime(time)
+        out = ifelse(err == CQL_OK, Dates.unix2datetime(unixtime[]/1000), NA)
     end
-    return out::T
+    return out
 end
 
 """
-    function cqlstrprep(table::String, columns::Array{String}, data::Array{Any,1})
+    function cqlstrprep(table::String, data::DataFrame)
 create a prepared query string for use with batch inserts
 - `table::String`: name of the table on the server
 - `columns::Array{String}`: name of the columns on the server
@@ -122,7 +122,8 @@ create a prepared query string for use with batch inserts
 # Return
 - `out::String`: a valid INSERT query
 """
-function cqlstrprep(table::String, columns::Array{String}, data::Array{Any,1})
+function cqlstrprep(table::String, data::DataFrame)
+    columns = string.(names(data))
     cols = ""
     vals = ""
     for c in columns
@@ -149,6 +150,8 @@ function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::DataType
         cql_statement_bind_int32(statement, pos, data)
     elseif typ == Int64
         cql_statement_bind_int64(statement, pos, data)
+    elseif typ == Float32
+        cql_statement_bind_float(statement, pos, data)
     elseif typ == Float64
         cql_statement_bind_double(statement, pos, data)
     elseif typ == DateTime
@@ -197,131 +200,198 @@ query the server for the contents of a table
 - `session::Ptr{CassSession}`: pointer to the active session
 - `query::String`: a valid SELECT query
 - `pgsize=10000`: how many lines to pull at a time
-- `strlen=128`: the maximum size of string columns
+- `retries=5`: number of times to retry pulling a page of data
+- `strlen=128`: the maximum number of characters in a string
 # Return
-- `err::UInt`: status of the query
-- `finalarray::Array{Any, 2}`: a 2 dimensional array containing the results
+- `err::UInt16`: status of the query
+- `output::DataFrame`: a dataframe with named columns
 """
-function cqlread(session::Ptr{CassSession}, query::String, pgsize=10000, strlen=128)
-    statement = cql_statement_new(query)
+function cqlread(session::Ptr{CassSession}, query::String, pgsize::Int=10000, retries::Int=5, strlen::Int=128)
+    statement = cql_statement_new(query, 0)
     cql_statement_set_paging_size(statement, pgsize)
-        
-    finalarray = [[]]
+    
+    output = DataFrame()
     morepages = true
-    while(morepages)    
-        future = cql_session_execute(session, statement)
-        err = cqlfuturecheck(future, "Session Execute") 
-        if err != CQL_OK
-            cql_statement_free(statement)
+    firstpage = true
+    err = CQL_OK
+    while(morepages)
+        future = Ptr{CassFuture}
+        while(true)
+            future = cql_session_execute(session, statement)
+            err = cqlfuturecheck(future, "Session Execute")
+            err == CQL_OK && break
+            if err != CQL_OK & retries == 0
+                cql_statement_free(statement)
+                cql_future_free(future)
+                return err::UInt16, output::DataFrame 
+            end
+            sleep(1)
+            retries -= 1
             cql_future_free(future)
-            return err, finalarray
-        end
+        end    
+        
         result = cql_future_get_result(future)
+        cql_future_free(future)
+        rows, cols = size(result)
 
-        # check dimensions of the result
-        # remember the types in each column
-        dim = size(result)
-        types = Array{DataType, 2}(1, dim[2])
-        for i in 1:dim[2]
-            types[i] = cqlvaltype(result, i-1)
+        if firstpage
+            types = Array{DataType}(cols)
+            for c in 1:cols
+                types[c] = cqlvaltype(result, c-1)
+            end
+            names = Array{Symbol}(cols)
+            for c in 1:cols
+                str = zeros(Vector{UInt8}(strlen))
+                strref = Ref{Ptr{UInt8}}(pointer(str))
+                siz = pointer_from_objref(sizeof(str))
+                errcol = cql_result_column_name(result, c-1, strref, siz)
+                names[c] = Symbol(ifelse(errcol == CQL_OK, unsafe_string(strref[]), string("C",c)))
+            end
+            output = DataFrame(types, names, 0)
+            firstpage = false
         end
 
-        # fill an array with arrays of values of varying types
-        # e.g. [[1, "hi", 3.0],
-        #       [2, "ho", 2.1]]
         iterator = cql_iterator_from_result(result)
-        output = Array{Any, 2}(dim)
-        for j in 1:dim[1]
+        arraybuf = Array{Any}(cols)
+        for r in 1:rows
             cql_iterator_next(iterator)
             row = cql_iterator_get_row(iterator)
-            for i in 1:dim[2]
-                val = cql_row_get_column(row, i-1)
-                output[j,i] = cqlgetvalue(val, types[i], strlen)
-            end      
+            for c in 1:cols
+                val = cql_row_get_column(row, c-1)
+                arraybuf[c] = cqlgetvalue(val, types[c], strlen)
+            end
+            push!(output, arraybuf)     
         end
-        finalarray = ifelse(length(finalarray) == 0, output, vcat(finalarray, output))
         
-        # check if there are more pages of values in the result
         morepages = cql_result_has_more_pages(result)
         cql_statement_set_paging_state(statement, result)
         cql_iterator_free(iterator)
         cql_result_free(result)
     end
     cql_statement_free(statement)
-    return CQL_OK, finalarray
+    return err::UInt16, output::DataFrame
 end
 
 """
-    function cqlbatchwrite(session::Ptr{CassSession}, table::String, columns::Array{String}, data::Array{Any,1})
-batch insert data arrays
+    function cqlbatchwrite(session::Ptr{CassSession}, table::String, data::DataFrame)
+write a set of rows to a table as a prepared batch
 - `session::Ptr{CassSession}`: pointer to the active session
 - `table::String`: the name of the table you want to write to
-- `columns::Array{String}`: an array of existing column names
-- `data::Array{Any,1}`: an array rows to insert. each row is an array of values.
+- `data::DataFrame`: a DataFrame with named columns
 # Return
-- `err::UInt`: status of the batch insert
+- `err::UInt16`: status of the batch insert
 """
-function cqlbatchwrite(session::Ptr{CassSession}, table::String, columns::Array{String}, data::Array{Any,1})
-    # check to see that size of data and columns match
-    length(columns) != length(data[1]) && (println("Data elements do not match columns."); return -1)
-    query = cqlstrprep(table, columns, data)
+function cqlbatchwrite(session::Ptr{CassSession}, table::String, data::DataFrame, retries::Int=5)
+    query = cqlstrprep(table, data)
     future = cql_session_prepare(session, query)
     cql_future_wait(future)
     err = cqlfuturecheck(future, "Session Prepare") 
     if err != CQL_OK 
         cql_future_free(future)
-        return err::UInt
+        return err::UInt16
     end
     
     prep = cql_future_get_prepared(future)
     cql_future_free(future)
     batch = cql_batch_new(0x00)
-    types = Array{DataType, 2}(1, length(data[1]))
-    for i in 1:length(data[1])
-        types[i] = typeof(data[1][i])
+    rows, cols = size(data)
+    types = Array{DataType}(cols)
+    for c in 1:cols
+        types[c] = typeof(data[1,c])
     end
-    for i in 1:length(data)
+    for r in 1:rows
         statement = cql_prepared_bind(prep)
-        for j in 1:length(data[1])
-            cqlstatementbind(statement, j-1, types[j], data[i][j])
+        for c in 1:cols
+            cqlstatementbind(statement, c-1, types[c], data[r,c])
         end
         cql_batch_add_statement(batch, statement)
         cql_statement_free(statement)
     end
-    future = cql_session_execute_batch(session, batch)
+    while(true)
+        future = cql_session_execute_batch(session, batch)
+        cql_future_wait(future)
+        err = cqlfuturecheck(future, "Execute Batch")
+        cql_future_free(future)
+        err == CQL_OK && break
+        retries == 0 && break
+        retries -= 1
+        sleep(1)
+    end
     cql_prepared_free(prep)
-    cql_future_wait(future)
-    err = cqlfuturecheck(future, "Execute Batch")
-    cql_future_free(future)
     cql_batch_free(batch)
     return err::UInt16
 end
 
 """
-    function cqlbatchwrite(session::Ptr{CassSession}, table::String, columns::Array{String}, data::Array{Any,1}, batchsize::Int = 1000)
-batch insert very large data arrays using async writes
+    function cqlrowwrite(session::Ptr{CassSession}, table::String, data::DataFrame)
+write one row of data to a table
 - `session::Ptr{CassSession}`: pointer to the active session
 - `table::String`: the name of the table you want to write to
-- `columns::Array{String}`: an array of existing column names
-- `data::Array{Any,1}`: an array rows to insert. each row is an array of values.
+- `data::DataFrame`: a DataFrame with named columns
+# Return
+- `err::UInt16`: status of the insert
+"""
+function cqlrowwrite(session::Ptr{CassSession}, table::String, data::DataFrame, retries::Int=5)
+    err = CQL_OK
+    query = cqlstrprep(table, data)
+    rows, cols = size(data)
+    statement = cql_statement_new(query, cols)
+    
+    types = Array{DataType}(cols)
+    for c in 1:cols
+        types[c] = typeof(data[1,c])
+    end
+    for c in 1:cols
+        cqlstatementbind(statement, c-1, types[c], data[1,c])
+    end
+
+    while(true) 
+        future = cql_session_execute(session, statement)
+        cql_future_wait(future)
+        err = cqlfuturecheck(future, "Execute Statement")
+        cql_future_free(future)
+        err == CQL_OK && break
+        retries == 0 && break
+        retries -= 1
+        sleep(1)
+    end
+    cql_statement_free(statement)
+    return err::UInt16
+end
+
+
+"""
+    function cqlwrite(session::Ptr{CassSession}, table::String, data::DataFrame, batchsize::Int = 1000)
+insert arbitrary number of rows into a table
+- `session::Ptr{CassSession}`: pointer to the active session
+- `table::String`: the name of the table you want to write to
+- `data::DataFrame`: a dataframe with named columns
 - `batchsize::Int`: how many rows to send at a time
 # Return
-- `err::Array{UInt}`: status of the batch inserts
+- `err::UInt16`: status of the batch inserts
 """
-function cqlasyncwrite(session::Ptr{CassSession}, table::String, columns::Array{String}, data::Array{Any,1}, batchsize::Int = 1000)
-    datasize = length(data)
-    para = datasize ÷ batchsize
-    err = Array{UInt16}(para)
-    @sync for i in 1:para
-        to = i * batchsize
-        fr = to - batchsize + 1
-        if i < para
-            @async err[i] = cqlbatchwrite(session, table, columns, data[fr:to])
-        else
-            @async err[i] = cqlbatchwrite(session, table, columns, data[fr:end])
+function cqlwrite(s::Ptr{CassSession}, table::String, data::DataFrame, batchsize::Int=1000, retries::Int=5)
+    rows, cols = size(data)
+    rows == 0 && return 0x9999
+    if rows == 1
+        err = cqlrowwrite(s, table, data)
+    elseif rows <= batchsize
+        err = cqlbatchwrite(s, table, data)
+    else
+        pages = (rows ÷ batchsize)
+        err = zeros(Array{UInt16}(pages))
+        @sync for p in 1:pages
+            to = p * batchsize
+            fr = to - batchsize + 1
+            if p < pages
+                @async err[p] = cqlbatchwrite(s, table, data[fr:to,:])
+            else
+                @async err[p] = cqlbatchwrite(s, table, data[fr:end,:])
+            end
         end
+        err = union(err)[1]
     end
-    return err
+    return err::UInt16
 end
 
 end

@@ -143,6 +143,15 @@ function cql_value_get_int32(val::Ptr{CassValue}, out::Ref{Cint})
     return err::UInt16
 end
 
+function cql_result_column_name(val::Ptr{CassResult}, pos::Int, out::Ref{Ptr{UInt8}}, siz::Ptr{Void})
+    err = ccall(
+            (:cass_result_column_name, :libcassandra),
+            Cushort,
+            (Ptr{CassResult}, Clonglong, Ref{Ptr{UInt8}}, Ref{Csize_t}),
+            val, pos, out, siz)
+    return err::UInt16 
+end
+
 function cql_value_get_string(val::Ptr{CassValue}, out::Ref{Ptr{UInt8}}, siz::Ptr{Void})
     err = ccall(
             (:cass_value_get_string, :libcassandra),
@@ -185,12 +194,12 @@ function cql_iterator_free(iterator::Ptr{CassIterator})
         iterator)
 end
 
-function cql_statement_new(query::String)
+function cql_statement_new(query::String, params::Int)
     statement = ccall(
                     (:cass_statement_new, :libcassandra),
                     Ptr{CassStatement},
-                    (Cstring, Int32),
-                    query, 0)
+                    (Cstring, Int64),
+                    query, params)
     return statement::Ptr{CassStatement}
 end
 
@@ -341,6 +350,14 @@ end
 function cql_statement_bind_double(statement::Ptr{CassStatement}, pos::Int, data::Float64)
     ccall(
         (:cass_statement_bind_double, :libcassandra),
+        Void,
+        (Ptr{CassStatement}, Cint, Cdouble),
+        statement, pos, data)
+end
+
+function cql_statement_bind_float(statement::Ptr{CassStatement}, pos::Int, data::Float32)
+    ccall(
+        (:cass_statement_bind_float, :libcassandra),
         Void,
         (Ptr{CassStatement}, Cint, Cdouble),
         statement, pos, data)
