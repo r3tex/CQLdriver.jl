@@ -1,5 +1,4 @@
 module CQLdriver
-
 export cqlinit, cqlclose, cqlwrite, cqlread
 
 using DataFrames
@@ -35,8 +34,9 @@ function cqlfuturecheck(future::Ptr{CassFuture}, caller::String = "")
 end
 
 """
-    function cql_val_type(result::Ptr{CassResult}, val::Int64)
-Decommission a connection and free its resources
+    cql_val_type(result, idx)
+Takes a CassResult and returns the type in a given column
+# Arguments
 - `result::Ptr{CassResult}`: a valid result from a query
 - `idx::Int64`: the column to check
 # Return
@@ -60,8 +60,8 @@ function cqlvaltype(result::Ptr{CassResult}, idx::Int64)
     val == 0x0005 ? typ = Int64    : # COUNTER
     val == 0x000E ? typ = BigInt   : # VARINT
     val == 0x0004 ? typ = Bool     : # BOOLEAN
-    val == 0x0007 ? typ = Float32  : # DOUBLE
-    val == 0x0008 ? typ = Float64  : # FLOAT
+    val == 0x0007 ? typ = Float64  : # DOUBLE
+    val == 0x0008 ? typ = Float32  : # FLOAT
     val == 0x0006 ? typ = BigFloat : # DECIMAL
     val == 0x000B ? typ = DateTime : # TIMESTAMP
     val == 0x0003 ? typ = Any      : # BLOB
@@ -84,33 +84,43 @@ retrieve value using the correct type
 - `t::DataType`: the type of the value being extracted
 - `strlen::Int`: for string values specify max-length of output
 # Return
-- `out::T`: the return value, can by of any type
+- `out`: the return value, can by of any type
 """
 function cqlgetvalue(val::Ptr{CassValue}, T::DataType, strlen::Int)
     if T == Int64
         num = Ref{Clonglong}(0)
         err = cql_value_get_int64(val, num)
         out = ifelse(err == CQL_OK, num[], NA)
+        return out
     elseif T == Int32
         num = Ref{Cint}(0)
         err = cql_value_get_int32(val, num)
         out = ifelse(err == CQL_OK, num[], NA)
+        return out
     elseif T == String
         str = zeros(Vector{UInt8}(strlen))
         strref = Ref{Ptr{UInt8}}(pointer(str))
         siz = pointer_from_objref(sizeof(str))
         err = cql_value_get_string(val, strref, siz)
         out = ifelse(err == CQL_OK, unsafe_string(strref[]), NA)
+        return out
     elseif T == Float64
         num = Ref{Cdouble}(0)
+        err = cql_value_get_double(val, num)
+        out = ifelse(err == CQL_OK, num[], NA)
+        return out
+    elseif T == Float32
+        num = Ref{Cfloat}(0)
         err = cql_value_get_float(val, num)
         out = ifelse(err == CQL_OK, num[], NA)
+        return out
     elseif T == DateTime
         unixtime = Ref{Clonglong}(0)
         err = cql_value_get_int64(val, unixtime)
         out = ifelse(err == CQL_OK, Dates.unix2datetime(unixtime[]/1000), NA)
+        return out
     end
-    return out
+    return NA
 end
 
 """
@@ -122,15 +132,30 @@ create a prepared query string for use with batch inserts
 # Return
 - `out::String`: a valid INSERT query
 """
-function cqlstrprep(table::String, data::DataFrame)
-    columns = string.(names(data))
-    cols = ""
-    vals = ""
-    for c in columns
-        cols = cols * c * ","
-        vals = vals * "?,"
+function cqlstrprep(table::String, data::DataFrame; update::DataFrame=DataFrame(), counter::Bool=false)
+    out = ""
+    if isempty(update)
+        datacolnames = string.(names(data))
+        cols, vals = "", ""
+
+        for c in datacolnames
+            cols = cols * c * ","
+            vals = vals * "?,"
+        end
+        out = "INSERT INTO " * table * " (" * cols[1:end-1] * ") VALUES (" * vals[1:end-1] * ")"
+    else write == :update
+        datacolnames = string.(names(data))
+        updtcolnames = string.(names(update))
+        cols, vals = "", ""
+        for c in datacolnames
+            
+            cols = cols * c * "=" * ifelse(counter, c*"+?, ", "?, ")
+        end
+        for u in updtcolnames
+            vals = vals * u * "=? AND "
+        end
+        out = "UPDATE " * table * " SET " * cols[1:end-2] * " WHERE " * vals[1:end-5]
     end
-    out = "INSERT INTO "* table *" ("* cols[1:end-1] *") VALUES ("* vals[1:end-1] *")"
     return out::String
 end
 
@@ -281,8 +306,8 @@ write a set of rows to a table as a prepared batch
 # Return
 - `err::UInt16`: status of the batch insert
 """
-function cqlbatchwrite(session::Ptr{CassSession}, table::String, data::DataFrame, retries::Int=5)
-    query = cqlstrprep(table, data)
+function cqlbatchwrite(session::Ptr{CassSession}, table::String, data::DataFrame; retries::Int=5, update::DataFrame=DataFrame(), counter::Bool=false)
+    query = cqlstrprep(table, data, update=update, counter=counter)
     future = cql_session_prepare(session, query)
     cql_future_wait(future)
     err = cqlfuturecheck(future, "Session Prepare") 
@@ -293,16 +318,23 @@ function cqlbatchwrite(session::Ptr{CassSession}, table::String, data::DataFrame
     
     prep = cql_future_get_prepared(future)
     cql_future_free(future)
-    batch = cql_batch_new(0x00)
+    batchtype = ifelse(!counter, 0x00, 0x02)
+    batch = cql_batch_new(batchtype)
     rows, cols = size(data)
+    frame = data
+    if !isempty(size(update))
+        urows, ucols = size(update)
+        cols += ucols
+        frame = hcat(data, update)
+    end
     types = Array{DataType}(cols)
     for c in 1:cols
-        types[c] = typeof(data[1,c])
+        types[c] = typeof(frame[1,c])
     end
     for r in 1:rows
         statement = cql_prepared_bind(prep)
         for c in 1:cols
-            cqlstatementbind(statement, c-1, types[c], data[r,c])
+            cqlstatementbind(statement, c-1, types[c], frame[r,c])
         end
         cql_batch_add_statement(batch, statement)
         cql_statement_free(statement)
@@ -331,9 +363,9 @@ write one row of data to a table
 # Return
 - `err::UInt16`: status of the insert
 """
-function cqlrowwrite(session::Ptr{CassSession}, table::String, data::DataFrame, retries::Int=5)
+function cqlrowwrite(session::Ptr{CassSession}, table::String, data::DataFrame; retries::Int=5, update::DataFrame=DataFrame(), counter::Bool=false)
     err = CQL_OK
-    query = cqlstrprep(table, data)
+    query = cqlstrprep(table, data, update=update, counter=counter)
     rows, cols = size(data)
     statement = cql_statement_new(query, cols)
     
@@ -366,17 +398,20 @@ insert arbitrary number of rows into a table
 - `session::Ptr{CassSession}`: pointer to the active session
 - `table::String`: the name of the table you want to write to
 - `data::DataFrame`: a dataframe with named columns
-- `batchsize::Int`: how many rows to send at a time
 # Return
 - `err::UInt16`: status of the batch inserts
+# Optional
+- `update::DataFrame`: 
+- `batchsize::Int`: how many rows to send at a time
+- `retries::Int`: 
 """
-function cqlwrite(s::Ptr{CassSession}, table::String, data::DataFrame, batchsize::Int=1000, retries::Int=5)
+function cqlwrite(s::Ptr{CassSession}, table::String, data::DataFrame; update::DataFrame=DataFrame(), batchsize::Int=1000, retries::Int=5, counter::Bool=false) 
     rows, cols = size(data)
     rows == 0 && return 0x9999
     if rows == 1
-        err = cqlrowwrite(s, table, data)
+        err = cqlrowwrite(s, table, data, retries=retries, update=update, counter=counter)
     elseif rows <= batchsize
-        err = cqlbatchwrite(s, table, data)
+        err = cqlbatchwrite(s, table, data, retries=retries, update=update, counter=counter)
     else
         pages = (rows ÷ batchsize)
         err = zeros(Array{UInt16}(pages))
@@ -384,9 +419,9 @@ function cqlwrite(s::Ptr{CassSession}, table::String, data::DataFrame, batchsize
             to = p * batchsize
             fr = to - batchsize + 1
             if p < pages
-                @async err[p] = cqlbatchwrite(s, table, data[fr:to,:])
+                @async err[p] = cqlbatchwrite(s, table, data[fr:to,:], retries=retries, update=update[fr:to,:], counter=counter)
             else
-                @async err[p] = cqlbatchwrite(s, table, data[fr:end,:])
+                @async err[p] = cqlbatchwrite(s, table, data[fr:end,:], retries=retries, update=update[fr:end,:], counter=counter)
             end
         end
         err = union(err)[1]
