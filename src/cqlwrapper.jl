@@ -161,7 +161,16 @@ function cql_value_get_string(val::Ptr{CassValue}, out::Ref{Ptr{UInt8}}, siz::Pt
     return err::UInt16
 end
 
-function cql_value_get_float(val::Ptr{CassValue}, out::Ref{Cdouble})
+function cql_value_get_float(val::Ptr{CassValue}, out::Ref{Cfloat})
+    err = ccall(
+            (:cass_value_get_float, :libcassandra),
+            Cushort,
+            (Ptr{CassValue}, Ref{Cfloat}),
+            val, out)
+    return err::UInt16
+end
+
+function cql_value_get_double(val::Ptr{CassValue}, out::Ref{Cdouble})
     err = ccall(
             (:cass_value_get_double, :libcassandra),
             Cushort,
