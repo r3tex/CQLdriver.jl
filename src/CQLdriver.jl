@@ -12,8 +12,9 @@ function Base.size(result::Ptr{CassResult})
 end
 
 """
-    function cql_future_check(future::Ptr{CassFuture}, caller::String = "")
+    function cql_future_check(future, caller)
 Check if a future contains any errors
+# Arguments
 - `future::Ptr{CassFuture}`: a pointer to a future
 - `caller::String`: a string to help identify where this function is called from
 # Return
@@ -78,8 +79,9 @@ function cqlvaltype(result::Ptr{CassResult}, idx::Int64)
 end
 
 """
-    function cqlgetvalue(val::Ptr{CassValue}, t::DataType, strlen::Int)
+    function cqlgetvalue(val, t, strlen)
 retrieve value using the correct type
+# Arguments
 - `val::Ptr{CassValue}`: a returned value from a query
 - `t::DataType`: the type of the value being extracted
 - `strlen::Int`: for string values specify max-length of output
@@ -124,13 +126,14 @@ function cqlgetvalue(val::Ptr{CassValue}, T::DataType, strlen::Int)
 end
 
 """
-    function cqlstrprep(table::String, data::DataFrame)
+    function cqlstrprep(table, data)
 create a prepared query string for use with batch inserts
+# Arguments
 - `table::String`: name of the table on the server
 - `columns::Array{String}`: name of the columns on the server
 - `data::Array{Any,1}`: an array of data to be inserted
 # Return
-- `out::String`: a valid INSERT query
+- `out::String`: a valid INSERT or UPDATE query
 """
 function cqlstrprep(table::String, data::DataFrame; update::DataFrame=DataFrame(), counter::Bool=false)
     out = ""
@@ -160,8 +163,9 @@ function cqlstrprep(table::String, data::DataFrame; update::DataFrame=DataFrame(
 end
 
 """
-    function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::DataType, data::T)
-bind data to a column in a statement for use with batch inserts
+    function cqlstatementbind(statement, pos, typ, data)
+Bind data to a column in a statement for use with batch inserts
+# Arguments
 - `statement::Ptr{CassStatement}`: pointer to a statement
 - `pos::Int`: what column to put data into
 - `typ::DataType, data)`: the datatype of the data
@@ -188,8 +192,9 @@ end
 
 
 """
-function cqlinit(hosts::String)    
+function cqlinit(hosts)    
 Establish a new connection to a cluster
+# Arguments
 - `hosts::String`: a string of comma separated IP addresses
 # Return
 - `session::Ptr{CassSession}`: a pointer to the active session
@@ -207,8 +212,9 @@ function cqlinit(hosts::String)
 end
 
 """
-function cqlclose(session::Ptr{CassSession}, cluster::Ptr{CassCluster})
+function cqlclose(session, cluster)
 Decommission a connection and free its resources
+# Arguments
 - `session::Ptr{CassSession}`: the current active session
 - `cluster::Ptr{CassCluster}`: the cluster associated with the active session
 # Return
@@ -220,18 +226,18 @@ function cqlclose(session::Ptr{CassSession}, cluster::Ptr{CassCluster})
 end
 
 """
-    function cqlread(session::Ptr{CassSession}, query::String, pgsize=10000, strlen=128)
-query the server for the contents of a table
+    function cqlread(session, query; pgsize, retries, strlen)
+Query the server for the contents of a table
 - `session::Ptr{CassSession}`: pointer to the active session
 - `query::String`: a valid SELECT query
-- `pgsize=10000`: how many lines to pull at a time
-- `retries=5`: number of times to retry pulling a page of data
-- `strlen=128`: the maximum number of characters in a string
+- `pgsize::Int=10000`: how many lines to pull at a time
+- `retries::Int=5`: number of times to retry pulling a page of data
+- `strlen::Int=128`: the maximum number of characters in a string
 # Return
 - `err::UInt16`: status of the query
 - `output::DataFrame`: a dataframe with named columns
 """
-function cqlread(session::Ptr{CassSession}, query::String, pgsize::Int=10000, retries::Int=5, strlen::Int=128)
+function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, retries::Int=5, strlen::Int=128)
     statement = cql_statement_new(query, 0)
     cql_statement_set_paging_size(statement, pgsize)
     
@@ -298,11 +304,15 @@ function cqlread(session::Ptr{CassSession}, query::String, pgsize::Int=10000, re
 end
 
 """
-    function cqlbatchwrite(session::Ptr{CassSession}, table::String, data::DataFrame)
-write a set of rows to a table as a prepared batch
+    function cqlbatchwrite(session, table, data; retries, update, counter)
+Write a set of rows to a table as a prepared batch
+# Arguments
 - `session::Ptr{CassSession}`: pointer to the active session
 - `table::String`: the name of the table you want to write to
 - `data::DataFrame`: a DataFrame with named columns
+- `retries::Int=5`: number of retries per batch insert
+- `update::DataFrame`: the arguments for WHERE during an UPDATE
+- `counter::Bool`: for updating the counter datatype
 # Return
 - `err::UInt16`: status of the batch insert
 """
@@ -355,11 +365,15 @@ function cqlbatchwrite(session::Ptr{CassSession}, table::String, data::DataFrame
 end
 
 """
-    function cqlrowwrite(session::Ptr{CassSession}, table::String, data::DataFrame)
-write one row of data to a table
+    function cqlrowwrite(session, table, data; retries, update, counter)
+Write one row of data to a table
+# Arguments
 - `session::Ptr{CassSession}`: pointer to the active session
 - `table::String`: the name of the table you want to write to
 - `data::DataFrame`: a DataFrame with named columns
+- `retries::Int=5`: number of retries per batch insert
+- `update::DataFrame`: the arguments for WHERE during an UPDATE
+- `counter::Bool`: for updating the counter datatype
 # Return
 - `err::UInt16`: status of the insert
 """
@@ -391,19 +405,19 @@ function cqlrowwrite(session::Ptr{CassSession}, table::String, data::DataFrame; 
     return err::UInt16
 end
 
-
 """
-    function cqlwrite(session::Ptr{CassSession}, table::String, data::DataFrame, batchsize::Int = 1000)
-insert arbitrary number of rows into a table
+    function cqlwrite(session, table, data; batchsize, retries, update, counter)
+Write to a table
+# Arguments
 - `session::Ptr{CassSession}`: pointer to the active session
 - `table::String`: the name of the table you want to write to
-- `data::DataFrame`: a dataframe with named columns
+- `data::DataFrame`: a DataFrame with named columns
+- `retries::Int=5`: number of retries per batch insert
+- `batchsize::Int=1000`: number of rows to write per batch
+- `update::DataFrame`: the arguments for WHERE during an UPDATE
+- `counter::Bool`: for updating the counter datatype
 # Return
-- `err::UInt16`: status of the batch inserts
-# Optional
-- `update::DataFrame`: 
-- `batchsize::Int`: how many rows to send at a time
-- `retries::Int`: 
+- `err::UInt16`: status of the insert
 """
 function cqlwrite(s::Ptr{CassSession}, table::String, data::DataFrame; update::DataFrame=DataFrame(), batchsize::Int=1000, retries::Int=5, counter::Bool=false) 
     rows, cols = size(data)
