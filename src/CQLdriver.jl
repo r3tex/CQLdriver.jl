@@ -382,13 +382,18 @@ function cqlrowwrite(session::Ptr{CassSession}, table::String, data::DataFrame; 
     query = cqlstrprep(table, data, update=update, counter=counter)
     rows, cols = size(data)
     statement = cql_statement_new(query, cols)
-    
+    frame = data    
+    if !isempty(size(update))
+        urows, ucols = size(update)
+        cols += ucols
+        frame = hcat(data, update)
+    end
     types = Array{DataType}(cols)
     for c in 1:cols
-        types[c] = typeof(data[1,c])
+        types[c] = typeof(frame[1,c])
     end
     for c in 1:cols
-        cqlstatementbind(statement, c-1, types[c], data[1,c])
+        cqlstatementbind(statement, c-1, types[c], frame[1,c])
     end
 
     while(true) 
