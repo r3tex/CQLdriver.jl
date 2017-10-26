@@ -381,7 +381,6 @@ function cqlrowwrite(session::Ptr{CassSession}, table::String, data::DataFrame; 
     err = CQL_OK
     query = cqlstrprep(table, data, update=update, counter=counter)
     rows, cols = size(data)
-    statement = cql_statement_new(query, cols)
     frame = data    
     if !isempty(size(update))
         urows, ucols = size(update)
@@ -392,6 +391,7 @@ function cqlrowwrite(session::Ptr{CassSession}, table::String, data::DataFrame; 
     for c in 1:cols
         types[c] = typeof(frame[1,c])
     end
+    statement = cql_statement_new(query, cols)
     for c in 1:cols
         cqlstatementbind(statement, c-1, types[c], frame[1,c])
     end
