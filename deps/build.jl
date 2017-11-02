@@ -23,6 +23,8 @@ elseif has_apt
     file = "cassandra-cpp-driver_" * version * "-1_amd64.deb"
     source = url * file
     target = "/tmp/cassandra-cpp-driver.deb"
+    uv = try success(`sudo apt install -y libuv0.10`) catch e false end
+    !uv && error("Unable to install libuv.")
     dl = try success(`wget -O $target $source`) catch e false end
     !dl && error("Unable to download CPP driver.")
     inst = try success(`sudo dpkg -i $target`) catch e false end

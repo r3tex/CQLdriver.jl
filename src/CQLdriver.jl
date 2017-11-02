@@ -1,7 +1,8 @@
+__precompile__(true)
 module CQLdriver
-export cqlinit, cqlclose, cqlwrite, cqlread
-
 using DataFrames
+export DataFrames, cqlinit, cqlclose, cqlwrite, cqlread
+
 include("cqlwrapper.jl")
 const CQL_OK = 0x0000
 
@@ -46,25 +47,25 @@ Takes a CassResult and returns the type in a given column
 function cqlvaltype(result::Ptr{CassResult}, idx::Int64) 
 # http://datastax.github.io/cpp-driver/api/cassandra.h/#enum-CassValueType
     val = cql_result_column_type(result, idx)
-    val == 0x0001 ? typ = String   : # ASCII
-    val == 0x000A ? typ = String   : # TEXT
-    val == 0x0010 ? typ = String   : # INET
-    val == 0x0011 ? typ = String   : # DATE
-    val == 0x0012 ? typ = String   : # TIME
-    val == 0x000D ? typ = String   : # VARCHAR
-    val == 0x0014 ? typ = UInt8    : # TINYINT
-    val == 0x0013 ? typ = UInt16   : # SMALLINT
+    val == 0x0001 ? typ = Any      : # ASCII
+    val == 0x000A ? typ = String   : # TEXT      # IMPLEMENTED
+    val == 0x0010 ? typ = IPAddr   : # INET 
+    val == 0x0011 ? typ = Date     : # DATE      # IMPLEMENTED
+    val == 0x0012 ? typ = Any      : # TIME
+    val == 0x000D ? typ = Any      : # VARCHAR
+    val == 0x0014 ? typ = Int8     : # TINYINT
+    val == 0x0013 ? typ = Int16    : # SMALLINT
     val == 0x000C ? typ = UInt128  : # UUID
     val == 0x000F ? typ = UInt128  : # TIMEUUID
-    val == 0x0009 ? typ = Int32    : # INTEGER
-    val == 0x0002 ? typ = Int64    : # BIGINT
-    val == 0x0005 ? typ = Int64    : # COUNTER
+    val == 0x0009 ? typ = Int32    : # INTEGER   # IMPLEMENTED
+    val == 0x0002 ? typ = Int64    : # BIGINT    # IMPLEMENTED
+    val == 0x0005 ? typ = Int64    : # COUNTER   # IMPLEMENTED
     val == 0x000E ? typ = BigInt   : # VARINT
-    val == 0x0004 ? typ = Bool     : # BOOLEAN
-    val == 0x0007 ? typ = Float64  : # DOUBLE
-    val == 0x0008 ? typ = Float32  : # FLOAT
+    val == 0x0004 ? typ = Bool     : # BOOLEAN   # IMPLEMENTED
+    val == 0x0007 ? typ = Float64  : # DOUBLE    # IMPLEMENTED
+    val == 0x0008 ? typ = Float32  : # FLOAT     # IMPLEMENTED
     val == 0x0006 ? typ = BigFloat : # DECIMAL
-    val == 0x000B ? typ = DateTime : # TIMESTAMP
+    val == 0x000B ? typ = DateTime : # TIMESTAMP # IMPLEMENTED
     val == 0x0003 ? typ = Any      : # BLOB
     val == 0xFFFF ? typ = Any      : # UNKNOWN
     val == 0x0000 ? typ = Any      : # CUSTOM
@@ -94,6 +95,11 @@ function cqlgetvalue(val::Ptr{CassValue}, T::DataType, strlen::Int)
         err = cql_value_get_int64(val, num)
         out = ifelse(err == CQL_OK, num[], NA)
         return out
+    elseif T == Bool
+        num = Ref{Cint}(0)
+        err = cql_value_get_bool(val, num)
+        out = ifelse(err == CQL_OK, Bool(num[]), NA)
+        return out
     elseif T == Int32
         num = Ref{Cint}(0)
         err = cql_value_get_int32(val, num)
@@ -115,6 +121,14 @@ function cqlgetvalue(val::Ptr{CassValue}, T::DataType, strlen::Int)
         num = Ref{Cfloat}(0)
         err = cql_value_get_float(val, num)
         out = ifelse(err == CQL_OK, num[], NA)
+        return out
+    elseif T == Date
+        num = Ref{Cuint}(0)
+        err = cql_value_get_uint32(val, num)
+        s = string(num[])
+        l = length(s)
+        o = ifelse(l == 8, s[1:4]*"-"*s[5:6]*"-"*s[7:8], "")
+        out = ifelse(err == CQL_OK, Date(o), NA)
         return out
     elseif T == DateTime
         unixtime = Ref{Clonglong}(0)
@@ -175,6 +189,8 @@ Bind data to a column in a statement for use with batch inserts
 function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::DataType, data)
     if typ == String
         cql_statement_bind_string(statement, pos, data)
+    elseif typ == Bool
+        cql_statement_bind_bool(statement, pos, data)
     elseif typ == Int32
         cql_statement_bind_int32(statement, pos, data)
     elseif typ == Int64
@@ -183,6 +199,9 @@ function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::DataType
         cql_statement_bind_float(statement, pos, data)
     elseif typ == Float64
         cql_statement_bind_double(statement, pos, data)
+    elseif typ == Date
+        d = parse(UInt32, replace(string(data),"-",""))        
+        cql_statement_bind_uint32(statement, pos, d)
     elseif typ == DateTime
         d = convert(Int64, Dates.datetime2unix(data)*1000)
         cql_statement_bind_int64(statement, pos, d)
