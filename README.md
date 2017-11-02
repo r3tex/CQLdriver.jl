@@ -7,6 +7,19 @@ This Julia package is an interface to ScyllaDB / Cassandra and is based on the D
 
 Now, it's probably easy to extend this package to enable other features, but I haven't taken the time to do so. If you find this useful but are missing a small set of features I can probably implement them if you file an issue. CQLdriver depends on [DataFrames](https://github.com/JuliaData/DataFrames.jl).
 
+Currently the following data-types are supported:
+Julia Type | CQL type
+--- | ---
+String | TEXT
+Date | DATE
+Int32 | INTEGER
+Int64 | BIGINT
+Int64 | COUNTER
+Bool | BOOLEAN
+Float32 | FLOAT
+Float64 | DOUBLE
+DateTime | TIMESTAMP 
+
 # Example use
 
 ### Starting / Closing a session
