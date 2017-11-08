@@ -84,3 +84,9 @@ julia> err, output = cqlread(session,
                              strlen = 1024)
 
 ```
+### Executing commands
+`cqlexec()` runs your command on the database and returns a 0x0000 if everything went OK.
+```
+julia> cmd = "CREATE TABLE test.example (id int, data text, PRIMARY KEY (id));"
+julia> err = cqlexec(session, cmd)
+```

@@ -467,4 +467,24 @@ function cqlwrite(s::Ptr{CassSession}, table::String, data::DataFrame; update::D
     return err::UInt16
 end
 
+"""
+    function cqlexec(session, statement)
+Execute arbitrary command to the CQL database
+# Arguments
+- `session::Ptr{CassSession}`: pointer to the active session
+- `statement::String`: a valid CQL command
+# Return
+- `err::UInt16`: status of the command
+"""
+function cqlexec(s::Ptr{CassSession}, cmd::String)
+    err = CQL_OK
+    statement = cql_statement_new(cmd, 0)
+    future = cql_session_execute(session, statement)
+    cql_future_wait(future)
+    err = cqlfuturecheck(future, "Execute Statement")
+    cql_future_free(future)
+    cql_statement_free(statement)
+    return err::UInt16
+end
+   
 end
