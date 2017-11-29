@@ -1,7 +1,7 @@
 __precompile__(true)
 module CQLdriver
 using DataFrames
-export DataFrames, cqlinit, cqlclose, cqlwrite, cqlread
+export DataFrames, cqlinit, cqlclose, cqlwrite, cqlread, cqlexec
 
 include("cqlwrapper.jl")
 const CQL_OK = 0x0000
@@ -476,7 +476,7 @@ Execute arbitrary command to the CQL database
 # Return
 - `err::UInt16`: status of the command
 """
-function cqlexec(s::Ptr{CassSession}, cmd::String)
+function cqlexec(session::Ptr{CassSession}, cmd::String)
     err = CQL_OK
     statement = cql_statement_new(cmd, 0)
     future = cql_session_execute(session, statement)
