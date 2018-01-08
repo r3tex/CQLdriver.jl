@@ -13,6 +13,49 @@ function Base.size(result::Ptr{CassResult})
 end
 
 """
+    function cqlinit(hosts; threads, connections, queuesize, bytelimit, requestlimit)
+Change the performance characteristics of your CQL driver
+# Arguments
+- `hosts::String`: a string with ipv4 addreses of hosts 
+- `threads::Int64`: set number of IO threads that handle query requests (default 1)
+- `connections::Int64`: set number of connections per thread (default 2)
+- `queuesize::Int64`: set queuesize that stores pending requests (default 4096)
+- `bytelimit::Int64`: set max number of bytes pending on connection (default 65536 - 64KB)
+- `requestlimit::Int64`: set max number of requests pending on connection (default 128 * connections)
+## Return
+- `session::Ptr{CassSession}`: a pointer to the active session
+- `cluster::Ptr{CassCluster}`: a pointer to the cluster
+- `err::UInt`: a 16 bit integer with an error code. No error returns 0
+"""
+function cqlinit(hosts::String; threads = 0, connections = 0, queuesize = 0, bytelimit = 0, requestlimit = 0)
+    cluster = cql_cluster_new()
+    session = cql_session_new()
+
+    err = CQL_OK
+    if threads != 0
+        err = cql_cluster_set_concurrency(cluster, threads) | err
+    end
+    if connections != 0
+        err = cql_cluster_set_connections_per_host(cluster, connections) | err
+    end
+    if queuesize != 0
+        err = cql_cluster_set_queue_size(cluster, queuesize) | err
+    end
+    if bytelimit != 0
+        err = cql_cluster_set_write_bytes_high_water_mark(cluster, bytelimit) | err
+    end
+    if requestlimit != 0
+        err = cql_cluster_set_pending_requests_high_water_mark(cluster, requestlimit) | err
+    end
+
+    cql_cluster_set_contact_points(cluster, hosts)
+    future = cql_session_connect(session, cluster)
+    err = cqlfuturecheck(future, "Session Connect") | err
+    cql_future_free(future)    
+    return session::Ptr{CassSession}, cluster::Ptr{CassCluster}, err::UInt16
+end
+
+"""
     function cql_future_check(future, caller)
 Check if a future contains any errors
 # Arguments
@@ -209,26 +252,6 @@ function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::DataType
 end
 
 
-
-"""
-function cqlinit(hosts)    
-Establish a new connection to a cluster
-# Arguments
-- `hosts::String`: a string of comma separated IP addresses
-# Return
-- `session::Ptr{CassSession}`: a pointer to the active session
-- `cluster::Ptr{CassCluster}: a pointer to the active cluster`
-- `err::UInt`: a 16 bit integer with an error code. No error returns 0
-"""
-function cqlinit(hosts::String)
-    cluster = cql_cluster_new()
-    session = cql_session_new()
-    cql_cluster_set_contact_points(cluster, hosts)
-    future = cql_session_connect(session, cluster)
-    err = cqlfuturecheck(future, "Session Connect")
-    cql_future_free(future)    
-    return session::Ptr{CassSession}, cluster::Ptr{CassCluster}, err::UInt16
-end
 
 """
 function cqlclose(session, cluster)

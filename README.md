@@ -24,12 +24,16 @@ Currently the following data-types are supported:
 # Example use
 
 ### Starting / Closing a session
-`cqlinit()` will return a 3-tuple of pointers and a `UInt16` error code which you can check. 
+`cqlinit()` will return a tuple with 2 pointers and a `UInt16` error code which you can check. 
 If the returned value is `0` then you're in good shape.
+It also lets you tune some performance characteristics of your connection.
 ```
 julia> session, cluster, err = cqlinit("192.168.1.128, 192.168.1.140")
 julia> const CQL_OK = 0x0000
 julia> @assert err == CQL_OK
+julia> cqlclose(session, cluster)
+
+julia> session, cluster, err = cqlinit(hosts, threads = 1, connections = 2, queuesize = 4096, bytelimit = 65536, requestlimit = 256)
 julia> cqlclose(session, cluster)
 ```
 The driver is quite smart about detecting all the nodes in the cluster and keeping the connection alive.
@@ -85,6 +89,7 @@ julia> err, output = cqlread(session,
                              strlen = 1024)
 
 ```
+
 ### Executing commands
 `cqlexec()` runs your command on the database and returns a 0x0000 if everything went OK.
 ```

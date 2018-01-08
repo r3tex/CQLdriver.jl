@@ -14,6 +14,65 @@ end
 @genstruct CassPrepared
 @genstruct CassBatch
 
+function cql_cluster_set_concurrency(cluster::Ptr{CassCluster}, nthreads::Int64)
+    val = ccall(
+            (:cass_cluster_set_num_threads_io, :libcassandra),
+            UInt16,
+            (Ptr{CassCluster}, UInt32),
+            cluster, nthreads)
+    return val::UInt16
+end
+
+function cql_cluster_set_connections_per_host(cluster::Ptr{CassCluster}, siz::Int64)
+    val1 = ccall(
+        (:cass_cluster_set_max_connections_per_host, :libcassandra),
+        UInt16,
+        (Ptr{CassCluster}, UInt32),
+        cluster, siz)
+    val2 = ccall(
+        (:cass_cluster_set_core_connections_per_host, :libcassandra),
+        UInt16,
+        (Ptr{CassCluster}, UInt32),
+        cluster, siz)
+    val = val1 | val2
+    return val::UInt16
+end
+
+function cql_cluster_set_write_bytes_high_water_mark(cluster::Ptr{CassCluster}, siz::Int64)
+    val = ccall(
+        (:cass_cluster_set_write_bytes_high_water_mark, :libcassandra),
+        UInt16,
+        (Ptr{CassCluster}, UInt32),
+        cluster, siz)
+    return val::UInt16
+end
+
+function cql_cluster_set_pending_requests_high_water_mark(cluster::Ptr{CassCluster}, siz::Int64)
+    val = ccall(
+        (:cass_cluster_set_pending_requests_high_water_mark, :libcassandra),
+        UInt16,
+        (Ptr{CassCluster}, UInt32),
+        cluster, siz)
+    return val::UInt16
+end
+
+function cql_cluster_set_queue_size(cluster::Ptr{CassCluster}, siz::Int64)
+    val1 = ccall(
+        (:cass_cluster_set_queue_size_io, :libcassandra),
+        UInt16,
+        (Ptr{CassCluster}, UInt32),
+        cluster, siz)
+    val2 = ccall(
+        (:cass_cluster_set_queue_size_event, :libcassandra),
+        UInt16,
+        (Ptr{CassCluster}, UInt32),
+        cluster, siz)
+    val = val1 | val2
+    return val::UInt16
+end
+
+
+
 function cql_future_error_code(future::Ptr{CassFuture})
     val = ccall(
             (:cass_future_error_code, :libcassandra),
