@@ -119,7 +119,7 @@ function cqlvaltype(result::Ptr{CassResult}, idx::Int64)
     val == 0x0030 ? typ = Any      : # UDT
     val == 0x0031 ? typ = Any      : # TUPLE
     typ = Any
-    return typ::DataType
+    return Union{typ, Missing}::Union
 end
 
 """
@@ -132,54 +132,54 @@ retrieve value using the correct type
 # Return
 - `out`: the return value, can by of any type
 """
-function cqlgetvalue(val::Ptr{CassValue}, T::DataType, strlen::Int)
-    if T == Int64
+function cqlgetvalue(val::Ptr{CassValue}, T::Union, strlen::Int)
+    if T == Union{Int64, Missing}
         num = Ref{Clonglong}(0)
         err = cql_value_get_int64(val, num)
-        out = ifelse(err == CQL_OK, num[], NA)
+        out = ifelse(err == CQL_OK, num[], missing)
         return out
-    elseif T == Bool
+    elseif T == Union{Bool, Missing}
         num = Ref{Cint}(0)
         err = cql_value_get_bool(val, num)
-        out = ifelse(err == CQL_OK, Bool(num[]), NA)
+        out = ifelse(err == CQL_OK, Bool(num[]), missing)
         return out
-    elseif T == Int32
+    elseif T == Union{Int32, Missing}
         num = Ref{Cint}(0)
         err = cql_value_get_int32(val, num)
-        out = ifelse(err == CQL_OK, num[], NA)
+        out = ifelse(err == CQL_OK, num[], missing)
         return out
-    elseif T == String
+    elseif T == Union{String, Missing}
         str = zeros(Vector{UInt8}(strlen))
         strref = Ref{Ptr{UInt8}}(pointer(str))
         siz = pointer_from_objref(sizeof(str))
         err = cql_value_get_string(val, strref, siz)
-        out = ifelse(err == CQL_OK, unsafe_string(strref[]), NA)
+        out = ifelse(err == CQL_OK, unsafe_string(strref[]), missing)
         return out
-    elseif T == Float64
+    elseif T == Union{Float64, Missing}
         num = Ref{Cdouble}(0)
         err = cql_value_get_double(val, num)
-        out = ifelse(err == CQL_OK, num[], NA)
+        out = ifelse(err == CQL_OK, num[], missing)
         return out
-    elseif T == Float32
+    elseif T == Union{Float32, Missing}
         num = Ref{Cfloat}(0)
         err = cql_value_get_float(val, num)
-        out = ifelse(err == CQL_OK, num[], NA)
+        out = ifelse(err == CQL_OK, num[], missing)
         return out
-    elseif T == Date
+    elseif T == Union{Date, Missing}
         num = Ref{Cuint}(0)
         err = cql_value_get_uint32(val, num)
         s = string(num[])
         l = length(s)
         o = ifelse(l == 8, s[1:4]*"-"*s[5:6]*"-"*s[7:8], "")
-        out = ifelse(err == CQL_OK, Date(o), NA)
+        out = ifelse(err == CQL_OK, Date(o), missing)
         return out
-    elseif T == DateTime
+    elseif T == Union{DateTime, Missing}
         unixtime = Ref{Clonglong}(0)
         err = cql_value_get_int64(val, unixtime)
-        out = ifelse(err == CQL_OK, Dates.unix2datetime(unixtime[]/1000), NA)
+        out = ifelse(err == CQL_OK, Dates.unix2datetime(unixtime[]/1000), missing)
         return out
     end
-    return NA
+    return missing
 end
 
 """
@@ -308,7 +308,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
         rows, cols = size(result)
 
         if firstpage
-            types = Array{DataType}(cols)
+            types = Array{Union}(cols)
             for c in 1:cols
                 types[c] = cqlvaltype(result, c-1)
             end
@@ -343,6 +343,66 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
     end
     cql_statement_free(statement)
     return err::UInt16, output::DataFrame
+end
+
+function cqlread(session::Ptr{CassSession}, queries::Array{String}, concurrency::Int=500, strlen::Int=128)
+    firstquery = true
+    out = DataFrame()
+    types = Array{Union}
+    for query in 1:concurrency:length(queries)
+        concurrency = ifelse(length(queries)-query < concurrency, length(queries)-query+1, concurrency)
+        futures = Array{Ptr{CassFuture}}(0)
+        for c in 1:concurrency
+            statement = cql_statement_new(queries[query+c-1], 0)
+            push!(futures, cql_session_execute(session, statement))
+            cql_statement_free(statement)
+        end
+        results = Array{Ptr{CassResult}}(0)
+        for future in futures
+            err = cqlfuturecheck(future, "Async Read")
+            push!(results, cql_future_get_result(future))
+            cql_future_free(future)
+        end
+        if firstquery
+            out, types = cqlbuilddf(results[1], strlen)
+            firstquery = false
+        end
+        for result in results
+            rows, cols = size(result)
+            iterator = cql_iterator_from_result(result)
+            arraybuf = Array{Any}(cols)
+            for r in 1:rows
+                cql_iterator_next(iterator)
+                row = cql_iterator_get_row(iterator)
+                for c in 1:cols
+                    arraybuf[c] = cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen)
+                end
+                push!(out, arraybuf)
+            end
+            cql_iterator_free(iterator)
+            cql_result_free(result)            
+        end
+        
+    end
+    return out::DataFrame
+end
+
+function cqlbuilddf(result::Ptr{CassResult}, strlen::Int)
+    rows, cols = size(result)
+    types = Array{Union}(cols)
+    for c in 1:cols
+        types[c] = cqlvaltype(result, c-1)
+    end
+    names = Array{Symbol}(cols)
+    for c in 1:cols
+        str = zeros(Vector{UInt8}(strlen))
+        strref = Ref{Ptr{UInt8}}(pointer(str))
+        siz = pointer_from_objref(sizeof(str))
+        errcol = cql_result_column_name(result, c-1, strref, siz)
+        names[c] = Symbol(ifelse(errcol == CQL_OK, unsafe_string(strref[]), string("C",c)))
+    end
+    output = DataFrame(types, names, 0)
+    return output::DataFrame, types::Array{Union}
 end
 
 """
