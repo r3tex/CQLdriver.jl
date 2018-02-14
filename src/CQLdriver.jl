@@ -269,9 +269,12 @@ end
 
 """
     function cqlread(session, query; pgsize, retries, strlen)
+    function cqlread(session, queries, concurrency; strlen)
 Query the server for the contents of a table
 - `session::Ptr{CassSession}`: pointer to the active session
 - `query::String`: a valid SELECT query
+- `queries::Array{String}`: an array of valid queries
+- `concurrency::Int=500`: how many queries to execute 
 - `pgsize::Int=10000`: how many lines to pull at a time
 - `retries::Int=5`: number of times to retry pulling a page of data
 - `strlen::Int=128`: the maximum number of characters in a string
@@ -345,7 +348,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
     return err::UInt16, output::DataFrame
 end
 
-function cqlread(session::Ptr{CassSession}, queries::Array{String}, concurrency::Int=500, strlen::Int=128)
+function cqlread(session::Ptr{CassSession}, queries::Array{String}, concurrency::Int=500; strlen::Int=128)
     firstquery = true
     out = DataFrame()
     types = Array{Union}
