@@ -281,6 +281,7 @@ Query the server for the contents of a table
 # Return
 - `err::UInt16`: status of the query
 - `output::DataFrame`: a dataframe with named columns
+- `outputs::Array{DataFrame}`: an array of dataframe results
 """
 function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, retries::Int=5, strlen::Int=128)
     statement = cql_statement_new(query, 0)
@@ -349,12 +350,11 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
 end
 
 function cqlread(session::Ptr{CassSession}, queries::Array{String}, concurrency::Int=500; strlen::Int=128)
-    firstquery = true
-    out = DataFrame()
-    types = Array{Union}
+    out = Array{DataFrame}(0)
     for query in 1:concurrency:length(queries)
         concurrency = ifelse(length(queries)-query < concurrency, length(queries)-query+1, concurrency)
         futures = Array{Ptr{CassFuture}}(0)
+        
         for c in 1:concurrency
             statement = cql_statement_new(queries[query+c-1], 0)
             push!(futures, cql_session_execute(session, statement))
@@ -366,13 +366,10 @@ function cqlread(session::Ptr{CassSession}, queries::Array{String}, concurrency:
             push!(results, cql_future_get_result(future))
             cql_future_free(future)
         end
-        if firstquery
-            out, types = cqlbuilddf(results[1], strlen)
-            firstquery = false
-        end
         for result in results
             rows, cols = size(result)
             iterator = cql_iterator_from_result(result)
+            df, types = cqlbuilddf(result, strlen)
             arraybuf = Array{Any}(cols)
             for r in 1:rows
                 cql_iterator_next(iterator)
@@ -380,14 +377,14 @@ function cqlread(session::Ptr{CassSession}, queries::Array{String}, concurrency:
                 for c in 1:cols
                     arraybuf[c] = cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen)
                 end
-                push!(out, arraybuf)
+                push!(df, arraybuf)
             end
+            push!(out, df)
             cql_iterator_free(iterator)
             cql_result_free(result)            
         end
-        
     end
-    return out::DataFrame
+    return out::Array{DataFrame}
 end
 
 function cqlbuilddf(result::Ptr{CassResult}, strlen::Int)
