@@ -284,7 +284,7 @@ function cql_statement_new(query::String, params::Int)
     statement = ccall(
                     (:cass_statement_new, :libcassandra),
                     Ptr{CassStatement},
-                    (Cstring, Int64),
+                    (Cstring, Clonglong),
                     query, params)
     return statement::Ptr{CassStatement}
 end
@@ -295,6 +295,15 @@ function cql_statement_set_paging_size(statement::Ptr{CassStatement}, pgsize::In
         Void,
         (Ptr{CassStatement}, Cint),
         statement, pgsize)
+end
+
+function cql_statement_set_request_timeout(statement::Ptr{CassStatement}, timeout::Int)
+    err = ccall(
+            (:cass_statement_set_request_timeout, :libcassandra),
+            Cushort,
+            (Ptr{CassStatement}, Clonglong),
+            statement, timeout)
+    return err::UInt16    
 end
 
 function cql_session_execute(session::Ptr{CassSession}, statement::Ptr{CassStatement})
@@ -414,6 +423,22 @@ function cql_statement_bind_string(statement::Ptr{CassStatement}, pos::Int, data
         (:cass_statement_bind_string, :libcassandra),
         Void,
         (Ptr{CassStatement}, Cint, Cstring),
+        statement, pos, data)
+end
+
+function cql_statement_bind_int8(statement::Ptr{CassStatement}, pos::Int, data::Int8)
+    ccall(
+        (:cass_statement_bind_int8, :libcassandra),
+        Void,
+        (Ptr{CassStatement}, Cint, Cshort),
+        statement, pos, data)
+end
+
+function cql_statement_bind_int16(statement::Ptr{CassStatement}, pos::Int, data::Int16)
+    ccall(
+        (:cass_statement_bind_int16, :libcassandra),
+        Void,
+        (Ptr{CassStatement}, Cint, Cshort),
         statement, pos, data)
 end
 

@@ -277,14 +277,16 @@ Query the server for the contents of a table
 - `concurrency::Int=500`: how many queries to execute 
 - `pgsize::Int=10000`: how many lines to pull at a time
 - `retries::Int=5`: number of times to retry pulling a page of data
+- `timeout::Int=10000`: time to wait for response in milliseconds
 - `strlen::Int=128`: the maximum number of characters in a string
 # Return
 - `err::UInt16`: status of the query
 - `output::DataFrame`: a dataframe with named columns
 - `outputs::Array{DataFrame}`: an array of dataframe results
 """
-function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, retries::Int=5, strlen::Int=128)
+function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, retries::Int=5, timeout::Int=10000, strlen::Int=128)
     statement = cql_statement_new(query, 0)
+    cql_statement_set_request_timeout(statement, timeout)
     cql_statement_set_paging_size(statement, pgsize)
     
     output = DataFrame()
@@ -297,7 +299,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
             future = cql_session_execute(session, statement)
             err = cqlfuturecheck(future, "Session Execute")
             err == CQL_OK && break
-            if err != CQL_OK & retries == 0
+            if (err != CQL_OK) & (retries == 0)
                 cql_statement_free(statement)
                 cql_future_free(future)
                 return err::UInt16, output::DataFrame 
@@ -349,23 +351,46 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
     return err::UInt16, output::DataFrame
 end
 
-function cqlread(session::Ptr{CassSession}, queries::Array{String}, concurrency::Int=500; strlen::Int=128)
+function cqlread(session::Ptr{CassSession}, queries::Array{String}; concurrency::Int=500, retries::Int=5, timeout::Int=10000, strlen::Int=128)
     out = Array{DataFrame}(0)
+    err = CQL_OK
+
     for query in 1:concurrency:length(queries)
         concurrency = ifelse(length(queries)-query < concurrency, length(queries)-query+1, concurrency)
-        futures = Array{Ptr{CassFuture}}(0)
-        
+
+        futures = Array{Ptr{CassFuture}}(0)        
         for c in 1:concurrency
             statement = cql_statement_new(queries[query+c-1], 0)
+            cql_statement_set_request_timeout(statement, timeout)
             push!(futures, cql_session_execute(session, statement))
             cql_statement_free(statement)
         end
+
         results = Array{Ptr{CassResult}}(0)
-        for future in futures
-            err = cqlfuturecheck(future, "Async Read")
-            push!(results, cql_future_get_result(future))
-            cql_future_free(future)
+        for f in 1:length(futures)
+            retry = retries
+            future = futures[f]
+            while(true)
+                futerr = cqlfuturecheck(future, "Async Read")
+                if futerr == CQL_OK 
+                    push!(results, cql_future_get_result(future))
+                    cql_future_free(future)
+                    break
+                end
+                if (futerr != CQL_OK) & (retry == 0)
+                    err = futerr
+                    cql_future_free(future)
+                    break
+                end
+                sleep(1)
+                retry -= 1
+                statement = cql_statement_new(queries[query+f-1], 0)
+                cql_statement_set_request_timeout(statement, timeout)
+                future = cql_session_execute(session, statement)
+                cql_statement_free(statement)
+            end
         end
+
         for result in results
             rows, cols = size(result)
             iterator = cql_iterator_from_result(result)
@@ -384,7 +409,7 @@ function cqlread(session::Ptr{CassSession}, queries::Array{String}, concurrency:
             cql_result_free(result)            
         end
     end
-    return out::Array{DataFrame}
+    return err::UInt16, out::Array{DataFrame}
 end
 
 function cqlbuilddf(result::Ptr{CassResult}, strlen::Int)
