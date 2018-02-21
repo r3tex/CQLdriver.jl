@@ -234,6 +234,10 @@ function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::DataType
         cql_statement_bind_string(statement, pos, data)
     elseif typ == Bool
         cql_statement_bind_bool(statement, pos, data)
+    elseif typ == Int8
+        cql_statement_bind_int8(statement, pos, data)
+    elseif typ == Int16
+        cql_statement_bind_int16(statement, pos, data)
     elseif typ == Int32
         cql_statement_bind_int32(statement, pos, data)
     elseif typ == Int64
