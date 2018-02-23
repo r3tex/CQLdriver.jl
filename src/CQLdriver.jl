@@ -90,12 +90,12 @@ Takes a CassResult and returns the type in a given column
 function cqlvaltype(result::Ptr{CassResult}, idx::Int64) 
 # http://datastax.github.io/cpp-driver/api/cassandra.h/#enum-CassValueType
     val = cql_result_column_type(result, idx)
-    val == 0x0001 ? typ = Any      : # ASCII
+    val == 0x0001 ? typ = Missing      : # ASCII
     val == 0x000A ? typ = String   : # TEXT      # IMPLEMENTED
     val == 0x0010 ? typ = IPAddr   : # INET 
     val == 0x0011 ? typ = Date     : # DATE      # IMPLEMENTED
-    val == 0x0012 ? typ = Any      : # TIME
-    val == 0x000D ? typ = Any      : # VARCHAR
+    val == 0x0012 ? typ = Missing      : # TIME
+    val == 0x000D ? typ = Missing      : # VARCHAR
     val == 0x0014 ? typ = Int8     : # TINYINT
     val == 0x0013 ? typ = Int16    : # SMALLINT
     val == 0x000C ? typ = UInt128  : # UUID
@@ -109,16 +109,16 @@ function cqlvaltype(result::Ptr{CassResult}, idx::Int64)
     val == 0x0008 ? typ = Float32  : # FLOAT     # IMPLEMENTED
     val == 0x0006 ? typ = BigFloat : # DECIMAL
     val == 0x000B ? typ = DateTime : # TIMESTAMP # IMPLEMENTED
-    val == 0x0003 ? typ = Any      : # BLOB
-    val == 0xFFFF ? typ = Any      : # UNKNOWN
-    val == 0x0000 ? typ = Any      : # CUSTOM
-    val == 0x0015 ? typ = Any      : # DURATION
-    val == 0x0020 ? typ = Any      : # LIST
-    val == 0x0021 ? typ = Any      : # MAP
-    val == 0x0022 ? typ = Any      : # SET
-    val == 0x0030 ? typ = Any      : # UDT
-    val == 0x0031 ? typ = Any      : # TUPLE
-    typ = Any
+    val == 0x0003 ? typ = Missing      : # BLOB
+    val == 0xFFFF ? typ = Missing      : # UNKNOWN
+    val == 0x0000 ? typ = Missing      : # CUSTOM
+    val == 0x0015 ? typ = Missing      : # DURATION
+    val == 0x0020 ? typ = Missing      : # LIST
+    val == 0x0021 ? typ = Missing      : # MAP
+    val == 0x0022 ? typ = Missing      : # SET
+    val == 0x0030 ? typ = Missing      : # UDT
+    val == 0x0031 ? typ = Missing      : # TUPLE
+    typ = Missing
     return Union{typ, Missing}::Union
 end
 
@@ -146,6 +146,16 @@ function cqlgetvalue(val::Ptr{CassValue}, T::Union, strlen::Int)
     elseif T == Union{Int32, Missing}
         num = Ref{Cint}(0)
         err = cql_value_get_int32(val, num)
+        out = ifelse(err == CQL_OK, num[], missing)
+        return out
+    elseif T == Union{Int16, Missing}
+        num = Ref{Cshort}(0)
+        err = cql_value_get_int16(val, num)
+        out = ifelse(err == CQL_OK, num[], missing)
+        return out
+    elseif T == Union{Int8, Missing}
+        num = Ref{Cshort}(0)
+        err = cql_value_get_int8(val, num)
         out = ifelse(err == CQL_OK, num[], missing)
         return out
     elseif T == Union{String, Missing}
