@@ -13,6 +13,8 @@ Currently the following data-types are supported:
 | :--- | ---: |
 |String | TEXT|
 |Date | DATE|
+|Int8 | TINYINT |
+|Int16 | SMALLINT |
 |Int32 | INTEGER|
 |Int64 | BIGINT|
 |Int64 | COUNTER|
@@ -36,7 +38,7 @@ julia> cqlclose(session, cluster)
 julia> session, cluster, err = cqlinit(hosts, threads = 1, connections = 2, queuesize = 4096, bytelimit = 65536, requestlimit = 256)
 julia> cqlclose(session, cluster)
 ```
-The driver is quite smart about detecting all the nodes in the cluster and keeping the connection alive.
+The driver tries to be smart about detecting all the nodes in the cluster and keeping the connection alive.
 
 ### Writing data
 `cqlwrite()` takes a `DataFrame` with named columns.
@@ -87,8 +89,17 @@ julia> err, output = cqlread(session,
                              pgsize = 15000, 
                              retries = 6, 
                              strlen = 1024)
+```
+You can send in an array of different queries and the driver will execute them asynchronously and return an array of resulting dataframes.
+```
+julia> query = ["SELECT * FROM data.bigtable WHERE driver=124","SELECT * FROM data.smalltable WHERE car=144"]
+julia> err, output = cqlread(session, 
+                             query, 
+                             concurrency=500, 
+                             timeout = 12000)
 
 ```
+
 
 ### Executing commands
 `cqlexec()` runs your command on the database and returns a 0x0000 if everything went OK.
