@@ -85,30 +85,30 @@ Takes a CassResult and returns the type in a given column
 - `result::Ptr{CassResult}`: a valid result from a query
 - `idx::Int64`: the column to check
 # Return
-- `typ::DataType`: the type of the value in the specified column
+- `typ`: the type of the value in the specified column
 """
 function cqlvaltype(result::Ptr{CassResult}, idx::Int64) 
 # http://datastax.github.io/cpp-driver/api/cassandra.h/#enum-CassValueType
     val = cql_result_column_type(result, idx)
-    val == 0x0001 ? typ = Missing      : # ASCII
-    val == 0x000A ? typ = String   : # TEXT      # IMPLEMENTED
-    val == 0x0010 ? typ = IPAddr   : # INET 
-    val == 0x0011 ? typ = Date     : # DATE      # IMPLEMENTED
-    val == 0x0012 ? typ = Missing      : # TIME
-    val == 0x000D ? typ = Missing      : # VARCHAR
+    val == 0x0009 ? typ = Int32    : # INTEGER   
+    val == 0x0002 ? typ = Int64    : # BIGINT     
+    val == 0x0005 ? typ = Int64    : # COUNTER   
+    val == 0x0007 ? typ = Float64  : # DOUBLE    
+    val == 0x0008 ? typ = Float32  : # FLOAT     
+    val == 0x000A ? typ = String   : # TEXT      
+    val == 0x000D ? typ = String      : # VARCHAR
+    val == 0x000B ? typ = DateTime : # TIMESTAMP 
     val == 0x0014 ? typ = Int8     : # TINYINT
     val == 0x0013 ? typ = Int16    : # SMALLINT
+    val == 0x0011 ? typ = Date     : # DATE      
+    val == 0x0004 ? typ = Bool     : # BOOLEAN   
     val == 0x000C ? typ = UInt128  : # UUID
     val == 0x000F ? typ = UInt128  : # TIMEUUID
-    val == 0x0009 ? typ = Int32    : # INTEGER   # IMPLEMENTED
-    val == 0x0002 ? typ = Int64    : # BIGINT    # IMPLEMENTED
-    val == 0x0005 ? typ = Int64    : # COUNTER   # IMPLEMENTED
     val == 0x000E ? typ = BigInt   : # VARINT
-    val == 0x0004 ? typ = Bool     : # BOOLEAN   # IMPLEMENTED
-    val == 0x0007 ? typ = Float64  : # DOUBLE    # IMPLEMENTED
-    val == 0x0008 ? typ = Float32  : # FLOAT     # IMPLEMENTED
+    val == 0x0010 ? typ = IPAddr   : # INET 
     val == 0x0006 ? typ = BigFloat : # DECIMAL
-    val == 0x000B ? typ = DateTime : # TIMESTAMP # IMPLEMENTED
+    val == 0x0012 ? typ = Missing      : # TIME
+    val == 0x0001 ? typ = Missing      : # ASCII
     val == 0x0003 ? typ = Missing      : # BLOB
     val == 0xFFFF ? typ = Missing      : # UNKNOWN
     val == 0x0000 ? typ = Missing      : # CUSTOM
@@ -119,7 +119,12 @@ function cqlvaltype(result::Ptr{CassResult}, idx::Int64)
     val == 0x0030 ? typ = Missing      : # UDT
     val == 0x0031 ? typ = Missing      : # TUPLE
     typ = Missing
-    return Union{typ, Missing}::Union
+    if typ == Missing 
+        typ = UInt8 
+        println("Warning, unsupported datatype: $(num2hex(val))
+        https://docs.datastax.com/en/developer/cpp-driver/2.8/api/cassandra.h/#enum-CassValueType")
+    end
+    return Union{typ, Missing}
 end
 
 """

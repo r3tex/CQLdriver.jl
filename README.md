@@ -12,6 +12,7 @@ Currently the following data-types are supported:
 |Julia Type|CQL type|
 | :--- | ---: |
 |String | TEXT|
+|String | VARCHAR|
 |Date | DATE|
 |Int8 | TINYINT |
 |Int16 | SMALLINT |
