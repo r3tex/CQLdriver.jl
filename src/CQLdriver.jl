@@ -1,4 +1,5 @@
 __precompile__(true)
+
 module CQLdriver
 using DataFrames
 export DataFrames, cqlinit, cqlclose, cqlwrite, cqlread, cqlexec
