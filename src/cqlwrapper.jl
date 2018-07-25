@@ -106,6 +106,14 @@ function cql_session_new()
     return val::Ptr{CassSession}
 end
 
+function cql_cluster_set_credentials(cluster::Ptr{CassCluster}, username::String, password::String)
+    ccall(
+        (:cass_cluster_set_credentials, :libcassandra),
+        Void,
+        (Ptr{CassCluster}, Cstring, Cstring),
+        cluster, username, password)
+end
+
 function cql_cluster_set_contact_points(cluster::Ptr{CassCluster}, hosts::String)
     ccall(
         (:cass_cluster_set_contact_points, :libcassandra),
