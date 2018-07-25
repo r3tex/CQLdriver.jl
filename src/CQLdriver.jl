@@ -14,10 +14,12 @@ function Base.size(result::Ptr{CassResult})
 end
 
 """
-    function cqlinit(hosts; threads, connections, queuesize, bytelimit, requestlimit)
+    function cqlinit(hosts; username, password, threads, connections, queuesize, bytelimit, requestlimit)
 Change the performance characteristics of your CQL driver
 # Arguments
 - `hosts::String`: a string with ipv4 addreses of hosts 
+- `username::String`: provide username for authenticated connections
+- `password::String`: provide password for authenticated connections
 - `threads::Int64`: set number of IO threads that handle query requests (default 1)
 - `connections::Int64`: set number of connections per thread (default 2)
 - `queuesize::Int64`: set queuesize that stores pending requests (default 4096)
@@ -28,11 +30,14 @@ Change the performance characteristics of your CQL driver
 - `cluster::Ptr{CassCluster}`: a pointer to the cluster
 - `err::UInt`: a 16 bit integer with an error code. No error returns 0
 """
-function cqlinit(hosts::String; threads = 0, connections = 0, queuesize = 0, bytelimit = 0, requestlimit = 0)
+function cqlinit(hosts::String; username = "", password = "", threads = 0, connections = 0, queuesize = 0, bytelimit = 0, requestlimit = 0)
     cluster = cql_cluster_new()
     session = cql_session_new()
 
     err = CQL_OK
+    if username != ""
+	    err = cql_cluster_set_credentials(cluster, username, password) | err
+    end
     if threads != 0
         err = cql_cluster_set_concurrency(cluster, threads) | err
     end
