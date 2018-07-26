@@ -36,7 +36,10 @@ julia> const CQL_OK = 0x0000
 julia> @assert err == CQL_OK
 julia> cqlclose(session, cluster)
 
-julia> session, cluster, err = cqlinit(hosts, threads = 1, connections = 2, queuesize = 4096, bytelimit = 65536, requestlimit = 256)
+julia> hosts = "192.168.1.128, 192.168.1.140"
+julia> session, cluster, err = cqlinit(hosts, threads = 1, connections = 2, 
+                                       queuesize = 4096, bytelimit = 65536, requestlimit = 256,
+                                       username="admin", password="s3cr!t")
 julia> cqlclose(session, cluster)
 ```
 The driver tries to be smart about detecting all the nodes in the cluster and keeping the connection alive.
