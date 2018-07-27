@@ -36,7 +36,7 @@ function cqlinit(hosts::String; username = "", password = "", threads = 0, conne
 
     err = CQL_OK
     if username != ""
-	    err = cql_cluster_set_credentials(cluster, username, password) | err
+	cql_cluster_set_credentials(cluster, username, password)
     end
     if threads != 0
         err = cql_cluster_set_concurrency(cluster, threads) | err
