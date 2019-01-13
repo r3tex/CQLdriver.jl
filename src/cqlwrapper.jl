@@ -82,10 +82,10 @@ function cql_future_error_code(future::Ptr{CassFuture})
     return val::UInt16
 end
 
-function cql_future_error_message(future::Ptr{CassFuture}, strref::Ref{Ptr{UInt8}}, siz::Ptr{Void})
+function cql_future_error_message(future::Ptr{CassFuture}, strref::Ref{Ptr{UInt8}}, siz::Ptr{Nothing})
     ccall(
         (:cass_future_error_message, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassFuture}, Ref{Ptr{UInt8}}, Ref{Csize_t}),
         future, strref, siz)
 end
@@ -109,7 +109,7 @@ end
 function cql_cluster_set_credentials(cluster::Ptr{CassCluster}, username::String, password::String)
     ccall(
         (:cass_cluster_set_credentials, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassCluster}, Cstring, Cstring),
         cluster, username, password)
 end
@@ -117,7 +117,7 @@ end
 function cql_cluster_set_contact_points(cluster::Ptr{CassCluster}, hosts::String)
     ccall(
         (:cass_cluster_set_contact_points, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassCluster}, Cstring),
         cluster, hosts)
 end
@@ -134,7 +134,7 @@ end
 function cql_session_free(session::Ptr{CassSession})
     ccall(
         (:cass_session_free, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassCluster},),
         session)
 end
@@ -142,7 +142,7 @@ end
 function cql_cluster_free(cluster::Ptr{CassCluster})
     ccall(
         (:cass_cluster_free, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassCluster},),
         cluster)
 end
@@ -178,7 +178,7 @@ end
 function cql_future_free(future::Ptr{CassFuture})
     ccall(
         (:cass_future_free, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassFuture},),
         future)
 end
@@ -228,7 +228,7 @@ function cql_value_get_int32(val::Ptr{CassValue}, out::Ref{Cint})
     return err::UInt16
 end
 
-function cql_result_column_name(val::Ptr{CassResult}, pos::Int, out::Ref{Ptr{UInt8}}, siz::Ptr{Void})
+function cql_result_column_name(val::Ptr{CassResult}, pos::Int, out::Ref{Ptr{UInt8}}, siz::Ptr{Nothing})
     err = ccall(
             (:cass_result_column_name, :libcassandra),
             Cushort,
@@ -255,7 +255,7 @@ function cql_value_get_bool(val::Ptr{CassValue}, out::Ref{Cint})
     return err::UInt16
 end
 
-function cql_value_get_string(val::Ptr{CassValue}, out::Ref{Ptr{UInt8}}, siz::Ptr{Void})
+function cql_value_get_string(val::Ptr{CassValue}, out::Ref{Ptr{UInt8}}, siz::Ptr{Nothing})
     err = ccall(
             (:cass_value_get_string, :libcassandra),
             Cushort,
@@ -285,7 +285,7 @@ end
 function cql_statement_free(statement::Ptr{CassStatement})
     ccall(
         (:cass_statement_free, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassStatement},),
         statement)
 end
@@ -293,7 +293,7 @@ end
 function cql_result_free(result::Ptr{CassResult})
     ccall(
         (:cass_result_free, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassResult},),
         result)
 end
@@ -301,7 +301,7 @@ end
 function cql_iterator_free(iterator::Ptr{CassIterator})
     ccall(
         (:cass_iterator_free, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassIterator},),
         iterator)
 end
@@ -318,7 +318,7 @@ end
 function cql_statement_set_paging_size(statement::Ptr{CassStatement}, pgsize::Int)
     ccall(
         (:cass_statement_set_paging_size, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassStatement}, Cint),
         statement, pgsize)
 end
@@ -390,7 +390,7 @@ end
 function cql_statement_set_paging_state(statement::Ptr{CassStatement}, result::Ptr{CassResult})
     ccall(
         (:cass_statement_set_paging_state, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassStatement}, Ptr{CassResult}),
         statement, result)
 end
@@ -398,7 +398,7 @@ end
 function cql_future_wait(future::Ptr{CassFuture})
     ccall(
         (:cass_future_wait, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassFuture},),
         future)
 end
@@ -447,7 +447,7 @@ end
 function cql_statement_bind_string(statement::Ptr{CassStatement}, pos::Int, data::String)
     ccall(
         (:cass_statement_bind_string, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassStatement}, Cint, Cstring),
         statement, pos, data)
 end
@@ -455,7 +455,7 @@ end
 function cql_statement_bind_int8(statement::Ptr{CassStatement}, pos::Int, data::Int8)
     ccall(
         (:cass_statement_bind_int8, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassStatement}, Cint, Cshort),
         statement, pos, data)
 end
@@ -463,7 +463,7 @@ end
 function cql_statement_bind_int16(statement::Ptr{CassStatement}, pos::Int, data::Int16)
     ccall(
         (:cass_statement_bind_int16, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassStatement}, Cint, Cshort),
         statement, pos, data)
 end
@@ -471,7 +471,7 @@ end
 function cql_statement_bind_int32(statement::Ptr{CassStatement}, pos::Int, data::Int32)
     ccall(
         (:cass_statement_bind_int32, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassStatement}, Cint, Cint),
         statement, pos, data)
 end
@@ -479,7 +479,7 @@ end
 function cql_statement_bind_int64(statement::Ptr{CassStatement}, pos::Int, data::Int64)
     ccall(
         (:cass_statement_bind_int64, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassStatement}, Cint, Clonglong),
         statement, pos, data)
 end
@@ -487,7 +487,7 @@ end
 function cql_statement_bind_bool(statement::Ptr{CassStatement}, pos::Int, data::Bool)
     ccall(
         (:cass_statement_bind_bool, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassStatement}, Cint, Cint),
         statement, pos, data)
 end
@@ -495,7 +495,7 @@ end
 function cql_statement_bind_uint32(statement::Ptr{CassStatement}, pos::Int, data::UInt32)
     ccall(
         (:cass_statement_bind_uint32, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassStatement}, Cint, Cuint),
         statement, pos, data)
 end
@@ -503,7 +503,7 @@ end
 function cql_statement_bind_double(statement::Ptr{CassStatement}, pos::Int, data::Float64)
     ccall(
         (:cass_statement_bind_double, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassStatement}, Cint, Cdouble),
         statement, pos, data)
 end
@@ -511,7 +511,7 @@ end
 function cql_statement_bind_float(statement::Ptr{CassStatement}, pos::Int, data::Float32)
     ccall(
         (:cass_statement_bind_float, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassStatement}, Cint, Cfloat),
         statement, pos, data)
 end
@@ -519,7 +519,7 @@ end
 function cql_batch_add_statement(batch::Ptr{CassBatch}, statement::Ptr{CassStatement})
     ccall(
         (:cass_batch_add_statement, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassBatch}, Ptr{CassStatement}),
         batch, statement)
 end
@@ -536,7 +536,7 @@ end
 function cql_batch_free(batch::Ptr{CassBatch})
     ccall(
         (:cass_batch_free, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassBatch},),
         batch)
 end
@@ -544,7 +544,7 @@ end
 function cql_prepared_free(prep::Ptr{CassPrepared})
     ccall(
         (:cass_prepared_free, :libcassandra),
-        Void,
+        Nothing,
         (Ptr{CassPrepared},),
         prep)
 end
