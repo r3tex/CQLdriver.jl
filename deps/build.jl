@@ -1,4 +1,4 @@
-if !is_linux()
+if !Sys.islinux()
     error("This package does not support OSX or Windows")
 end
 
