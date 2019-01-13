@@ -30,7 +30,7 @@ elseif has_apt
     libuv_dl = success(`wget -O $libuv_target $libuv_url`)
     !libuv_dl && error("Unable to download libuv.")
     libuv_inst = success(`sudo dpkg -i $libuv_target`)
-    libuv_inst && error("Unable to install libuv driver.")
+    !libuv_inst && error("Unable to install libuv driver.")
     dl = try success(`wget -O $cass_target $cass_source`) catch e false end
     !dl && error("Unable to download CPP driver.")
     inst = try success(`sudo dpkg -i $cass_target`) catch e false end
