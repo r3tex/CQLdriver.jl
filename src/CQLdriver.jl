@@ -268,7 +268,7 @@ function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::DataType
     elseif typ == Float64
         cql_statement_bind_double(statement, pos, data)
     elseif typ == Date
-        d = parse(UInt32, replace(string(data),"-",""))        
+        d = parse(UInt32, replace(string(data),"-" => ""))        
         cql_statement_bind_uint32(statement, pos, d)
     elseif typ == DateTime
         d = convert(Int64, Dates.datetime2unix(data)*1000)
@@ -589,10 +589,10 @@ function cqlwrite(s::Ptr{CassSession}, table::String, data::DataFrame; update::D
         @sync for p in 1:pages
             to = p * batchsize
             fr = to - batchsize + 1
-            if p < pages
-                @async err[p] = cqlbatchwrite(s, table, data[fr:to,:], retries=retries, update=update[fr:to,:], counter=counter)
+            if p < pages                
+                @async err[p] = cqlbatchwrite(s, table, data[fr:to,:], retries=retries, update=isempty(update) ? DataFrame() : update[fr:to,:], counter=counter)
             else
-                @async err[p] = cqlbatchwrite(s, table, data[fr:end,:], retries=retries, update=update[fr:end,:], counter=counter)
+                @async err[p] = cqlbatchwrite(s, table, data[fr:end,:], retries=retries, update=isempty(update) ? DataFrame() : update[fr:end,:], counter=counter)
             end
         end
         err = union(err)[1]
