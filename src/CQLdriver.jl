@@ -570,7 +570,9 @@ Write to a table
 function cqlwrite(s::Ptr{CassSession}, table::String, data::DataFrame; update::DataFrame=DataFrame(), batchsize::Int=1000, retries::Int=5, counter::Bool=false) 
     rows, cols = size(data)
     rows == 0 && return 0x9999
-    cols > 100 && batchsize = batchsize ÷ (cols ÷ 100 + 1)
+    if cols > 100
+        batchsize = batchsize ÷ (cols ÷ 100 + 1)
+    end
     if rows == 1
         err = cqlrowwrite(s, table, data, retries=retries, update=update, counter=counter)
     elseif rows <= batchsize
