@@ -339,13 +339,13 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
         rows, cols = size(result)
 
         if firstpage
-            types = Array{Union}(cols)
+            types = Array{Union}(UndefInitializer(), cols)
             for c in 1:cols
                 types[c] = cqlvaltype(result, c-1)
             end
-            names = Array{Symbol}(cols)
+            names = Array{Symbol}(UndefInitializer(), cols)
             for c in 1:cols
-                str = zeros(Vector{UInt8}(strlen))
+                str = zeros(UInt8, strlen)
                 strref = Ref{Ptr{UInt8}}(pointer(str))
                 siz = pointer_from_objref(sizeof(str))
                 errcol = cql_result_column_name(result, c-1, strref, siz)
@@ -356,7 +356,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
         end
 
         iterator = cql_iterator_from_result(result)
-        arraybuf = Array{Any}(cols)
+        arraybuf = Array{Any}(UndefInitializer(), cols)
         for r in 1:rows
             cql_iterator_next(iterator)
             row = cql_iterator_get_row(iterator)
@@ -377,13 +377,13 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
 end
 
 function cqlread(session::Ptr{CassSession}, queries::Array{String}; concurrency::Int=500, retries::Int=5, timeout::Int=10000, strlen::Int=128)
-    out = Array{DataFrame}(0)
+    out = Array{DataFrame}(UndefInitializer(), 0)
     err = CQL_OK
 
     for query in 1:concurrency:length(queries)
         concurrency = ifelse(length(queries)-query < concurrency, length(queries)-query+1, concurrency)
 
-        futures = Array{Ptr{CassFuture}}(0)        
+        futures = Array{Ptr{CassFuture}}(UndefInitializer(), 0)        
         for c in 1:concurrency
             statement = cql_statement_new(queries[query+c-1], 0)
             cql_statement_set_request_timeout(statement, timeout)
@@ -391,7 +391,7 @@ function cqlread(session::Ptr{CassSession}, queries::Array{String}; concurrency:
             cql_statement_free(statement)
         end
 
-        results = Array{Ptr{CassResult}}(0)
+        results = Array{Ptr{CassResult}}(UndefInitializer(), 0)
         for f in 1:length(futures)
             retry = retries
             future = futures[f]
@@ -420,7 +420,7 @@ function cqlread(session::Ptr{CassSession}, queries::Array{String}; concurrency:
             rows, cols = size(result)
             iterator = cql_iterator_from_result(result)
             df, types = cqlbuilddf(result, strlen)
-            arraybuf = Array{Any}(cols)
+            arraybuf = Array{Any}(UndefInitializer(), cols)
             for r in 1:rows
                 cql_iterator_next(iterator)
                 row = cql_iterator_get_row(iterator)
@@ -439,13 +439,13 @@ end
 
 function cqlbuilddf(result::Ptr{CassResult}, strlen::Int)
     rows, cols = size(result)
-    types = Array{Union}(cols)
+    types = Array{Union}(UndefInitializer(), cols)
     for c in 1:cols
         types[c] = cqlvaltype(result, c-1)
     end
-    names = Array{Symbol}(cols)
+    names = Array{Symbol}(UndefInitializer(), cols)
     for c in 1:cols
-        str = zeros(Vector{UInt8}(strlen))
+        str = zeros(UInt8, strlen)
         strref = Ref{Ptr{UInt8}}(pointer(str))
         siz = pointer_from_objref(sizeof(str))
         errcol = cql_result_column_name(result, c-1, strref, siz)
@@ -489,7 +489,7 @@ function cqlbatchwrite(session::Ptr{CassSession}, table::String, data::DataFrame
         cols += ucols
         frame = hcat(data, update)
     end
-    types = Array{DataType}(cols)
+    types = Array{DataType}(UndefInitializer(), cols)
     for c in 1:cols
         types[c] = typeof(frame[1,c])
     end
@@ -539,7 +539,7 @@ function cqlrowwrite(session::Ptr{CassSession}, table::String, data::DataFrame; 
         cols += ucols
         frame = hcat(data, update)
     end
-    types = Array{DataType}(cols)
+    types = Array{DataType}(UndefInitializer(), cols)
     for c in 1:cols
         types[c] = typeof(frame[1,c])
     end
@@ -585,7 +585,7 @@ function cqlwrite(s::Ptr{CassSession}, table::String, data::DataFrame; update::D
         err = cqlbatchwrite(s, table, data, retries=retries, update=update, counter=counter)
     else
         pages = (rows ÷ batchsize)
-        err = zeros(Array{UInt16}(pages))
+        err = zeros(UInt16, pages)
         @sync for p in 1:pages
             to = p * batchsize
             fr = to - batchsize + 1
