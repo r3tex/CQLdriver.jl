@@ -257,26 +257,25 @@ Bind data to a column in a statement for use with batch inserts
 # Return
 - `Void`:
 """
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::String, data) = cql_statement_bind_string(statement, pos, data)
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Bool, data) = cql_statement_bind_bool(statement, pos, data)
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Int8, data) = cql_statement_bind_int8(statement, pos, data)
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Int16, data) = cql_statement_bind_int16(statement, pos, data)
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Int32, data) = cql_statement_bind_int32(statement, pos, data)
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Int64, data) = cql_statement_bind_int64(statement, pos, data)
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Float32, data) = cql_statement_bind_float(statement, pos, data)
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Float64, data) = cql_statement_bind_double(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::DataType, data::Missing) = cql_statement_bind_null(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{String}, Type{Union{String, Missing}}}, data) = cql_statement_bind_string(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{Bool}, Type{Union{Bool, Missing}}}, data) = cql_statement_bind_bool(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{Int8}, Type{Union{Int8, Missing}}}, data) = cql_statement_bind_int8(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{Int16}, Type{Union{Int16, Missing}}}, data) = cql_statement_bind_int16(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{Int32}, Type{Union{Int32, Missing}}}, data) = cql_statement_bind_int32(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{Int64}, Type{Union{Int64, Missing}}}, data) = cql_statement_bind_int64(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{Float32}, Type{Union{Float32, Missing}}}, data) = cql_statement_bind_float(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{Float64}, Type{Union{Float64, Missing}}}, data) = cql_statement_bind_double(statement, pos, data)
 
-function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Date, data)
+function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{Date}, Type{Union{Date, Missing}}}, data)
     d = parse(UInt32, replace(string(data),"-" => ""))
     cql_statement_bind_uint32(statement, pos, d)
 end
 
-function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::DateTime, data)
+function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{DateTime}, Type{Union{DateTime, Missing}}}, data)
     d = convert(Int64, Dates.datetime2unix(data)*1000)
     cql_statement_bind_int64(statement, pos, d)
 end
-
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union, data::Missing) = cql_statement_bind_null(statement, pos, data)
 
 """
 function cqlclose(session, cluster)
