@@ -143,37 +143,37 @@ retrieve value using the correct type
 # Return
 - `out`: the return value, can by of any type
 """
-function cqlgetvalue(val::Ptr{CassValue}, T::Union{Int64, Missing}, strlen::Int)
+function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{Int64, Missing}}, strlen::Int)
     num = Ref{Clonglong}(0)
     err = cql_value_get_int64(val, num)
     return ifelse(err == CQL_OK, num[], missing)
 end
 
-function cqlgetvalue(val::Ptr{CassValue}, T::Union{Bool, Missing}, strlen::Int)
+function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{Bool, Missing}}, strlen::Int)
     num = Ref{Cint}(0)
     err = cql_value_get_bool(val, num)
     return ifelse(err == CQL_OK, Bool(num[]), missing)
 end
 
-function cqlgetvalue(val::Ptr{CassValue}, T::Union{Int32, Missing}, strlen::Int)
+function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{Int32, Missing}}, strlen::Int)
     num = Ref{Cint}(0)
     err = cql_value_get_int32(val, num)
     return ifelse(err == CQL_OK, num[], missing)
 end
 
-function cqlgetvalue(val::Ptr{CassValue}, T::Union{Int16, Missing}, strlen::Int)
+function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{Int16, Missing}}, strlen::Int)
     num = Ref{Cshort}(0)
     err = cql_value_get_int16(val, num)
     return ifelse(err == CQL_OK, num[], missing)
 end
 
-function cqlgetvalue(val::Ptr{CassValue}, T::Union{Int8, Missing}, strlen::Int)
+function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{Int8, Missing}}, strlen::Int)
     num = Ref{Cshort}(0)
     err = cql_value_get_int8(val, num)
     return ifelse(err == CQL_OK, num[], missing)
 end
 
-function cqlgetvalue(val::Ptr{CassValue}, T::Union{String, Missing}, strlen::Int)
+function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{String, Missing}}, strlen::Int)
     str = zeros(Vector{UInt8}(strlen))
     strref = Ref{Ptr{UInt8}}(pointer(str))
     siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
@@ -181,19 +181,19 @@ function cqlgetvalue(val::Ptr{CassValue}, T::Union{String, Missing}, strlen::Int
     return ifelse(err == CQL_OK, unsafe_string(strref[]), missing)
 end
 
-function cqlgetvalue(val::Ptr{CassValue}, T::Union{Float64, Missing}, strlen::Int)
+function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{Float64, Missing}}, strlen::Int)
     num = Ref{Cdouble}(0)
     err = cql_value_get_double(val, num)
     return ifelse(err == CQL_OK, num[], missing)
 end
 
-function cqlgetvalue(val::Ptr{CassValue}, T::Union{Float32, Missing}, strlen::Int)
+function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{Float32, Missing}}, strlen::Int)
     num = Ref{Cfloat}(0)
     err = cql_value_get_float(val, num)
     return ifelse(err == CQL_OK, num[], missing)
 end
 
-function cqlgetvalue(val::Ptr{CassValue}, T::Union{Date, Missing}, strlen::Int)
+function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{Date, Missing}}, strlen::Int)
     num = Ref{Cuint}(0)
     err = cql_value_get_uint32(val, num)
     s = string(num[])
@@ -202,13 +202,13 @@ function cqlgetvalue(val::Ptr{CassValue}, T::Union{Date, Missing}, strlen::Int)
     return ifelse(err == CQL_OK, Date(o), missing)
 end
 
-function cqlgetvalue(val::Ptr{CassValue}, T::Union{DateTime, Missing}, strlen::Int)
+function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{DateTime, Missing}}, strlen::Int)
     unixtime = Ref{Clonglong}(0)
     err = cql_value_get_int64(val, unixtime)
     return ifelse(err == CQL_OK, Dates.unix2datetime(unixtime[]/1000), missing)
 end
 
-cqlgetvalue(val::Ptr{CassValue}, T::Union, strlen::Int) = missing
+cqlgetvalue(val::Ptr{CassValue}, T::Type{Union}, strlen::Int) = missing
 
 """
     function cqlstrprep(table, data)
@@ -257,22 +257,22 @@ Bind data to a column in a statement for use with batch inserts
 # Return
 - `Void`:
 """
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::DataType, data::Missing) = cql_statement_bind_null(statement, pos, data)
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{String}, Type{Union{String, Missing}}}, data) = cql_statement_bind_string(statement, pos, data)
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{Bool}, Type{Union{Bool, Missing}}}, data) = cql_statement_bind_bool(statement, pos, data)
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{Int8}, Type{Union{Int8, Missing}}}, data) = cql_statement_bind_int8(statement, pos, data)
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{Int16}, Type{Union{Int16, Missing}}}, data) = cql_statement_bind_int16(statement, pos, data)
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{Int32}, Type{Union{Int32, Missing}}}, data) = cql_statement_bind_int32(statement, pos, data)
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{Int64}, Type{Union{Int64, Missing}}}, data) = cql_statement_bind_int64(statement, pos, data)
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{Float32}, Type{Union{Float32, Missing}}}, data) = cql_statement_bind_float(statement, pos, data)
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{Float64}, Type{Union{Float64, Missing}}}, data) = cql_statement_bind_double(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Missing) = cql_statement_bind_null(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::String) = cql_statement_bind_string(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Bool) = cql_statement_bind_bool(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Int8) = cql_statement_bind_int8(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Int16) = cql_statement_bind_int16(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Int32) = cql_statement_bind_int32(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Int64) = cql_statement_bind_int64(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Float32) = cql_statement_bind_float(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Float64) = cql_statement_bind_double(statement, pos, data)
 
-function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{Date}, Type{Union{Date, Missing}}}, data)
+function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Date)
     d = parse(UInt32, replace(string(data),"-" => ""))
     cql_statement_bind_uint32(statement, pos, d)
 end
 
-function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union{Type{DateTime}, Type{Union{DateTime, Missing}}}, data)
+function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::DateTime)
     d = convert(Int64, Dates.datetime2unix(data)*1000)
     cql_statement_bind_int64(statement, pos, d)
 end
@@ -317,6 +317,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
     morepages = true
     firstpage = true
     err = CQL_OK
+    types = Array{Union}(UndefInitializer(), cols)
     while(morepages)
         future = Ptr{CassFuture}
         while(true)
@@ -337,8 +338,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
         cql_future_free(future)
         rows, cols = size(result)
 
-        if firstpage
-            types = Array{Union}(UndefInitializer(), cols)
+        if firstpage            
             for c in 1:cols
                 types[c] = cqlvaltype(result, c-1)
             end
@@ -488,11 +488,10 @@ function cqlbatchwrite(session::Ptr{CassSession}, table::String, data::DataFrame
         cols += ucols
         frame = hcat(data, update)
     end
-    types = eltypes(frame)
     for r in 1:rows
         statement = cql_prepared_bind(prep)
         for c in 1:cols
-            cqlstatementbind(statement, c-1, types[c], frame[r,c])
+            cqlstatementbind(statement, c-1, frame[r,c])
         end
         cql_batch_add_statement(batch, statement)
         cql_statement_free(statement)
@@ -535,13 +534,9 @@ function cqlrowwrite(session::Ptr{CassSession}, table::String, data::DataFrame; 
         cols += ucols
         frame = hcat(data, update)
     end
-    types = Array{DataType}(UndefInitializer(), cols)
-    for c in 1:cols
-        types[c] = typeof(frame[1,c])
-    end
     statement = cql_statement_new(query, cols)
     for c in 1:cols
-        cqlstatementbind(statement, c-1, types[c], frame[1,c])
+        cqlstatementbind(statement, c-1, frame[1,c])
     end
 
     while(true) 
