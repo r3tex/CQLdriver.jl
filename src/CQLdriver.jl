@@ -1,7 +1,7 @@
 __precompile__(true)
 
 module CQLdriver
-using DataFrames
+using DataFrames, Dates
 export DataFrames, cqlinit, cqlclose, cqlwrite, cqlread, cqlexec
 
 include("cqlwrapper.jl")
