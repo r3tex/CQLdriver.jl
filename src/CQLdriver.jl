@@ -317,7 +317,6 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
     morepages = true
     firstpage = true
     err = CQL_OK
-    types = Array{Union}(UndefInitializer(), cols)
     while(morepages)
         future = Ptr{CassFuture}
         while(true)
@@ -338,7 +337,8 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
         cql_future_free(future)
         rows, cols = size(result)
 
-        if firstpage            
+        if firstpage   
+            types = Array{Union}(UndefInitializer(), cols)         
             for c in 1:cols
                 types[c] = cqlvaltype(result, c-1)
             end
@@ -570,6 +570,7 @@ Write to a table
 function cqlwrite(s::Ptr{CassSession}, table::String, data::DataFrame; update::DataFrame=DataFrame(), batchsize::Int=1000, retries::Int=5, counter::Bool=false) 
     rows, cols = size(data)
     rows == 0 && return 0x9999
+    cols > 100 && batchsize = batchsize ÷ (cols ÷ 100 + 1)
     if rows == 1
         err = cqlrowwrite(s, table, data, retries=retries, update=update, counter=counter)
     elseif rows <= batchsize
