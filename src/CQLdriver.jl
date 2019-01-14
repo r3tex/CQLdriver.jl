@@ -77,7 +77,7 @@ function cqlfuturecheck(future::Ptr{CassFuture}, caller::String = "")
         println("Error in CQL operation: ", caller)
         str = zeros(Vector{UInt8}(256))
         strref = Ref{Ptr{UInt8}}(pointer(str))
-        siz = sizeof(str)
+        siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
         cql_future_error_message(future, strref, siz)
         println(unsafe_string(strref[]))
     end
@@ -172,7 +172,7 @@ function cqlgetvalue(val::Ptr{CassValue}, T::Union, strlen::Int)
     elseif T == Union{String, Missing}
         str = zeros(Vector{UInt8}(strlen))
         strref = Ref{Ptr{UInt8}}(pointer(str))
-        siz = sizeof(str)
+        siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
         err = cql_value_get_string(val, strref, siz)
         out = ifelse(err == CQL_OK, unsafe_string(strref[]), missing)
         return out
@@ -347,7 +347,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
             for c in 1:cols
                 str = zeros(UInt8, strlen)
                 strref = Ref{Ptr{UInt8}}(pointer(str))
-                siz = sizeof(str)
+                siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
                 errcol = cql_result_column_name(result, c-1, strref, siz)
                 names[c] = Symbol(ifelse(errcol == CQL_OK, unsafe_string(strref[]), string("C",c)))
             end
@@ -447,7 +447,7 @@ function cqlbuilddf(result::Ptr{CassResult}, strlen::Int)
     for c in 1:cols
         str = zeros(UInt8, strlen)
         strref = Ref{Ptr{UInt8}}(pointer(str))
-        siz = sizeof(str)
+        siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
         errcol = cql_result_column_name(result, c-1, strref, siz)
         names[c] = Symbol(ifelse(errcol == CQL_OK, unsafe_string(strref[]), string("C",c)))
     end

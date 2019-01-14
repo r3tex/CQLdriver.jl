@@ -82,11 +82,11 @@ function cql_future_error_code(future::Ptr{CassFuture})
     return val::UInt16
 end
 
-function cql_future_error_message(future::Ptr{CassFuture}, strref::Ref{Ptr{UInt8}}, siz::Int)
+function cql_future_error_message(future::Ptr{CassFuture}, strref::Ref{Ptr{UInt8}}, siz::Ptr{Nothing})
     ccall(
         (:cass_future_error_message, "libcassandra.so.2"),
         Nothing,
-        (Ptr{CassFuture}, Ref{Ptr{UInt8}}, Csize_t),
+        (Ptr{CassFuture}, Ref{Ptr{UInt8}}, Ref{Csize_t}),
         future, strref, siz)
 end
 
@@ -228,11 +228,11 @@ function cql_value_get_int32(val::Ptr{CassValue}, out::Ref{Cint})
     return err::UInt16
 end
 
-function cql_result_column_name(val::Ptr{CassResult}, pos::Int, out::Ref{Ptr{UInt8}}, siz::Int)
+function cql_result_column_name(val::Ptr{CassResult}, pos::Int, out::Ref{Ptr{UInt8}}, siz::Ptr{Nothing})
     err = ccall(
             (:cass_result_column_name, "libcassandra.so.2"),
             Cushort,
-            (Ptr{CassResult}, Clonglong, Ref{Ptr{UInt8}}, Csize_t),
+            (Ptr{CassResult}, Clonglong, Ref{Ptr{UInt8}}, Ref{Csize_t}),
             val, pos, out, siz)
     return err::UInt16 
 end
@@ -255,11 +255,11 @@ function cql_value_get_bool(val::Ptr{CassValue}, out::Ref{Cint})
     return err::UInt16
 end
 
-function cql_value_get_string(val::Ptr{CassValue}, out::Ref{Ptr{UInt8}}, siz::Int)
+function cql_value_get_string(val::Ptr{CassValue}, out::Ref{Ptr{UInt8}}, siz::Ptr{Nothing})
     err = ccall(
             (:cass_value_get_string, "libcassandra.so.2"),
             Cushort,
-            (Ptr{CassValue}, Ref{Ptr{UInt8}}, Csize_t),
+            (Ptr{CassValue}, Ref{Ptr{UInt8}}, Ref{Csize_t}),
             val, out, siz)
     return err::UInt16
 end
