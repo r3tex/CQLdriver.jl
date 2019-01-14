@@ -143,65 +143,72 @@ retrieve value using the correct type
 # Return
 - `out`: the return value, can by of any type
 """
-function cqlgetvalue(val::Ptr{CassValue}, T::Union, strlen::Int)
-    if T == Union{Int64, Missing}
-        num = Ref{Clonglong}(0)
-        err = cql_value_get_int64(val, num)
-        out = ifelse(err == CQL_OK, num[], missing)
-        return out
-    elseif T == Union{Bool, Missing}
-        num = Ref{Cint}(0)
-        err = cql_value_get_bool(val, num)
-        out = ifelse(err == CQL_OK, Bool(num[]), missing)
-        return out
-    elseif T == Union{Int32, Missing}
-        num = Ref{Cint}(0)
-        err = cql_value_get_int32(val, num)
-        out = ifelse(err == CQL_OK, num[], missing)
-        return out
-    elseif T == Union{Int16, Missing}
-        num = Ref{Cshort}(0)
-        err = cql_value_get_int16(val, num)
-        out = ifelse(err == CQL_OK, num[], missing)
-        return out
-    elseif T == Union{Int8, Missing}
-        num = Ref{Cshort}(0)
-        err = cql_value_get_int8(val, num)
-        out = ifelse(err == CQL_OK, num[], missing)
-        return out
-    elseif T == Union{String, Missing}
-        str = zeros(Vector{UInt8}(strlen))
-        strref = Ref{Ptr{UInt8}}(pointer(str))
-        siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
-        err = cql_value_get_string(val, strref, siz)
-        out = ifelse(err == CQL_OK, unsafe_string(strref[]), missing)
-        return out
-    elseif T == Union{Float64, Missing}
-        num = Ref{Cdouble}(0)
-        err = cql_value_get_double(val, num)
-        out = ifelse(err == CQL_OK, num[], missing)
-        return out
-    elseif T == Union{Float32, Missing}
-        num = Ref{Cfloat}(0)
-        err = cql_value_get_float(val, num)
-        out = ifelse(err == CQL_OK, num[], missing)
-        return out
-    elseif T == Union{Date, Missing}
-        num = Ref{Cuint}(0)
-        err = cql_value_get_uint32(val, num)
-        s = string(num[])
-        l = length(s)
-        o = ifelse(l == 8, s[1:4]*"-"*s[5:6]*"-"*s[7:8], "")
-        out = ifelse(err == CQL_OK, Date(o), missing)
-        return out
-    elseif T == Union{DateTime, Missing}
-        unixtime = Ref{Clonglong}(0)
-        err = cql_value_get_int64(val, unixtime)
-        out = ifelse(err == CQL_OK, Dates.unix2datetime(unixtime[]/1000), missing)
-        return out
-    end
-    return missing
+function cqlgetvalue(val::Ptr{CassValue}, T::Union{Int64, Missing}, strlen::Int)
+    num = Ref{Clonglong}(0)
+    err = cql_value_get_int64(val, num)
+    return ifelse(err == CQL_OK, num[], missing)
 end
+
+function cqlgetvalue(val::Ptr{CassValue}, T::Union{Bool, Missing}, strlen::Int)
+    num = Ref{Cint}(0)
+    err = cql_value_get_bool(val, num)
+    return ifelse(err == CQL_OK, Bool(num[]), missing)
+end
+
+function cqlgetvalue(val::Ptr{CassValue}, T::Union{Int32, Missing}, strlen::Int)
+    num = Ref{Cint}(0)
+    err = cql_value_get_int32(val, num)
+    return ifelse(err == CQL_OK, num[], missing)
+end
+
+function cqlgetvalue(val::Ptr{CassValue}, T::Union{Int16, Missing}, strlen::Int)
+    num = Ref{Cshort}(0)
+    err = cql_value_get_int16(val, num)
+    return ifelse(err == CQL_OK, num[], missing)
+end
+
+function cqlgetvalue(val::Ptr{CassValue}, T::Union{Int8, Missing}, strlen::Int)
+    num = Ref{Cshort}(0)
+    err = cql_value_get_int8(val, num)
+    return ifelse(err == CQL_OK, num[], missing)
+end
+
+function cqlgetvalue(val::Ptr{CassValue}, T::Union{String, Missing}, strlen::Int)
+    str = zeros(Vector{UInt8}(strlen))
+    strref = Ref{Ptr{UInt8}}(pointer(str))
+    siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
+    err = cql_value_get_string(val, strref, siz)
+    return ifelse(err == CQL_OK, unsafe_string(strref[]), missing)
+end
+
+function cqlgetvalue(val::Ptr{CassValue}, T::Union{Float64, Missing}, strlen::Int)
+    num = Ref{Cdouble}(0)
+    err = cql_value_get_double(val, num)
+    return ifelse(err == CQL_OK, num[], missing)
+end
+
+function cqlgetvalue(val::Ptr{CassValue}, T::Union{Float32, Missing}, strlen::Int)
+    num = Ref{Cfloat}(0)
+    err = cql_value_get_float(val, num)
+    return ifelse(err == CQL_OK, num[], missing)
+end
+
+function cqlgetvalue(val::Ptr{CassValue}, T::Union{Date, Missing}, strlen::Int)
+    num = Ref{Cuint}(0)
+    err = cql_value_get_uint32(val, num)
+    s = string(num[])
+    l = length(s)
+    o = ifelse(l == 8, s[1:4]*"-"*s[5:6]*"-"*s[7:8], "")
+    return ifelse(err == CQL_OK, Date(o), missing)
+end
+
+function cqlgetvalue(val::Ptr{CassValue}, T::Union{DateTime, Missing}, strlen::Int)
+    unixtime = Ref{Clonglong}(0)
+    err = cql_value_get_int64(val, unixtime)
+    return ifelse(err == CQL_OK, Dates.unix2datetime(unixtime[]/1000), missing)
+end
+
+cqlgetvalue(val::Ptr{CassValue}, T::Union, strlen::Int) = missing
 
 """
     function cqlstrprep(table, data)
@@ -250,33 +257,26 @@ Bind data to a column in a statement for use with batch inserts
 # Return
 - `Void`:
 """
-function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::DataType, data)
-    if typ == String
-        cql_statement_bind_string(statement, pos, data)
-    elseif typ == Bool
-        cql_statement_bind_bool(statement, pos, data)
-    elseif typ == Int8
-        cql_statement_bind_int8(statement, pos, data)
-    elseif typ == Int16
-        cql_statement_bind_int16(statement, pos, data)
-    elseif typ == Int32
-        cql_statement_bind_int32(statement, pos, data)
-    elseif typ == Int64
-        cql_statement_bind_int64(statement, pos, data)
-    elseif typ == Float32
-        cql_statement_bind_float(statement, pos, data)
-    elseif typ == Float64
-        cql_statement_bind_double(statement, pos, data)
-    elseif typ == Date
-        d = parse(UInt32, replace(string(data),"-" => ""))        
-        cql_statement_bind_uint32(statement, pos, d)
-    elseif typ == DateTime
-        d = convert(Int64, Dates.datetime2unix(data)*1000)
-        cql_statement_bind_int64(statement, pos, d)
-    end
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::String, data) = cql_statement_bind_string(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Bool, data) = cql_statement_bind_bool(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Int8, data) = cql_statement_bind_int8(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Int16, data) = cql_statement_bind_int16(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Int32, data) = cql_statement_bind_int32(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Int64, data) = cql_statement_bind_int64(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Float32, data) = cql_statement_bind_float(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Float64, data) = cql_statement_bind_double(statement, pos, data)
+
+function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Date, data)
+    d = parse(UInt32, replace(string(data),"-" => ""))
+    cql_statement_bind_uint32(statement, pos, d)
 end
 
+function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::DateTime, data)
+    d = convert(Int64, Dates.datetime2unix(data)*1000)
+    cql_statement_bind_int64(statement, pos, d)
+end
 
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, typ::Union, data::Missing) = cql_statement_bind_null(statement, pos, data)
 
 """
 function cqlclose(session, cluster)
@@ -489,10 +489,7 @@ function cqlbatchwrite(session::Ptr{CassSession}, table::String, data::DataFrame
         cols += ucols
         frame = hcat(data, update)
     end
-    types = Array{DataType}(UndefInitializer(), cols)
-    for c in 1:cols
-        types[c] = typeof(frame[1,c])
-    end
+    types = eltypes(frame)
     for r in 1:rows
         statement = cql_prepared_bind(prep)
         for c in 1:cols

@@ -516,6 +516,14 @@ function cql_statement_bind_float(statement::Ptr{CassStatement}, pos::Int, data:
         statement, pos, data)
 end
 
+function cql_statement_bind_null(statement::Ptr{CassStatement}, pos::Int, ::Missing)
+    ccall(
+        (:cass_statement_bind_null, "libcassandra.so.2"),
+        Nothing,
+        (Ptr{CassStatement}, Cint),
+        statement, pos)
+end
+
 function cql_batch_add_statement(batch::Ptr{CassBatch}, statement::Ptr{CassStatement})
     ccall(
         (:cass_batch_add_statement, "libcassandra.so.2"),
