@@ -257,7 +257,7 @@ Bind data to a column in a statement for use with batch inserts
 # Return
 - `Void`:
 """
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Missing) = cql_statement_bind_null(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Missing) = nothing # default to unset_value
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::String) = cql_statement_bind_string(statement, pos, data)
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Bool) = cql_statement_bind_bool(statement, pos, data)
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Int8) = cql_statement_bind_int8(statement, pos, data)
@@ -570,9 +570,6 @@ Write to a table
 function cqlwrite(s::Ptr{CassSession}, table::String, data::DataFrame; update::DataFrame=DataFrame(), batchsize::Int=500, retries::Int=5, counter::Bool=false) 
     rows, cols = size(data)
     rows == 0 && return 0x9999
-    if cols > 10
-        batchsize = batchsize ÷ (cols ÷ 10 + 1)
-    end
     if rows == 1
         err = cqlrowwrite(s, table, data, retries=retries, update=update, counter=counter)
     elseif rows <= batchsize
