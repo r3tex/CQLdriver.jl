@@ -317,6 +317,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
     morepages = true
     firstpage = true
     err = CQL_OK
+    types = Union[]
     while(morepages)
         future = Ptr{CassFuture}
         while(true)
@@ -337,11 +338,8 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
         cql_future_free(future)
         rows, cols = size(result)
 
-        if firstpage   
-            types = Array{Union}(UndefInitializer(), cols)         
-            for c in 1:cols
-                types[c] = cqlvaltype(result, c-1)
-            end
+        if firstpage
+            types = [cqlvaltype(result, c-1) for c = 1:cols]
             names = Array{Symbol}(UndefInitializer(), cols)
             for c in 1:cols
                 str = zeros(UInt8, strlen)
