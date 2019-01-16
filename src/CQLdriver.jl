@@ -359,12 +359,13 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
         end
 
         iterator = cql_iterator_from_result(result)
-        for r = 1:rows
+        output_arr = SA_Type(undef, rows)
+        for r = eachindex(output_arr)
             cql_iterator_next(iterator)
             row = cql_iterator_get_row(iterator)
-            push!(output, NT(Tuple([cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen) for c = 1:cols])))
+            output_arr[r] = NT(Tuple([cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen) for c = 1:cols]))
         end
-
+        ouptut = vcat(output, output_arr)
         morepages = cql_result_has_more_pages(result)
         cql_statement_set_paging_state(statement, result)
         cql_iterator_free(iterator)
