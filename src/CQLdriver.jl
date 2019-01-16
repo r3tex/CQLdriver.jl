@@ -354,26 +354,24 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
             end
             NT = NamedTuple{Tuple(names), Tuple{types...}}
             SA_Type = StructArray{NT}
-            output = Vector{SA_Type}()
+            output = SA_Type(undef, 0)
             firstpage = false
         end
 
         iterator = cql_iterator_from_result(result)
-        output_arr = SA_Type(undef, rows)
-        for r = eachindex(output_arr)
+        for r = 1:rows
             cql_iterator_next(iterator)
             row = cql_iterator_get_row(iterator)
-            row_vals = NT(Tuple([cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen) for c = 1:cols]))
-            output_arr[r] = row_vals
+            push!(output, NT(Tuple([cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen) for c = 1:cols])))
         end
-        push!(output, output_arr)
+
         morepages = cql_result_has_more_pages(result)
         cql_statement_set_paging_state(statement, result)
         cql_iterator_free(iterator)
         cql_result_free(result)
     end
     cql_statement_free(statement)
-    return err::UInt16, vcat(output...)::SA_Type
+    return err::UInt16, output::SA_Type
 end
 
 function cqlread(session::Ptr{CassSession}, queries::Array{String}; concurrency::Int=500, retries::Int=5, timeout::Int=10000, strlen::Int=128)
