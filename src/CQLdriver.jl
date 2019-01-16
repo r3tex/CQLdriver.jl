@@ -368,7 +368,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
             #     val = cql_row_get_column(row, c-1)
             #     arraybuf[c] = cqlgetvalue(val, types[c], strlen)
             # end
-            row_vals = NT((val for val = [cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen) for c = 1:cols]))
+            row_vals = NT(Tuple[cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen) for c = 1:cols])
             output[r] = row_vals
             # push!(output, arraybuf)
 
