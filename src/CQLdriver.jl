@@ -361,14 +361,14 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
 
         iterator = cql_iterator_from_result(result)
         # arraybuf = Array{Any}(UndefInitializer(), cols)
-        for r = eachindex(1:rows)
+        for r = 1:rows
             cql_iterator_next(iterator)
             row = cql_iterator_get_row(iterator)
             # for c in 1:cols
             #     val = cql_row_get_column(row, c-1)
             #     arraybuf[c] = cqlgetvalue(val, types[c], strlen)
             # end
-            row_vals = NT((val for val = [cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen)]))
+            row_vals = NT((val for val = [cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen) for c = 1:cols]))
             output[r] = row_vals
             # push!(output, arraybuf)
 
