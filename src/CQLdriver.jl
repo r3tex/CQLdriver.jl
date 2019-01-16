@@ -313,14 +313,11 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
     cql_statement_set_request_timeout(statement, timeout)
     cql_statement_set_paging_size(statement, pgsize)
     
-    # output = DataFrame()
-    output = nothing
+    output = DataFrame()
     morepages = true
     firstpage = true
     err = CQL_OK
     types = nothing
-    NT = nothing
-    SA_Type = nothing
     while(morepages)
         future = Ptr{CassFuture}
         while(true)
@@ -330,7 +327,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
             if (err != CQL_OK) & (retries == 0)
                 cql_statement_free(statement)
                 cql_future_free(future)
-                return err::UInt16, output::StructArray 
+                return err::UInt16, output::DataFrame 
             end
             sleep(1)
             retries -= 1
@@ -344,7 +341,6 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
         if firstpage
             types = [cqlvaltype(result, c-1) for c = 1:cols]
             names = Array{Symbol}(UndefInitializer(), cols)
-            
             for c in 1:cols
                 str = zeros(UInt8, strlen)
                 strref = Ref{Ptr{UInt8}}(pointer(str))
@@ -352,26 +348,20 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
                 errcol = cql_result_column_name(result, c-1, strref, siz)
                 names[c] = Symbol(ifelse(errcol == CQL_OK, unsafe_string(strref[]), string("C",c)))
             end
-            # output = DataFrame(types, names, 0)
-            NT = NamedTuple{Tuple(names), Tuple{Tuple(types)...}}
-            SA_Type = StructArray{NT}
-            output = SA_Type(undef, rows)
+            output = DataFrame(types, names, 0)
             firstpage = false
         end
 
         iterator = cql_iterator_from_result(result)
-        # arraybuf = Array{Any}(UndefInitializer(), cols)
-        for r = 1:rows
+        arraybuf = Array{Any}(UndefInitializer(), cols)
+        for r in 1:rows
             cql_iterator_next(iterator)
             row = cql_iterator_get_row(iterator)
-            # for c in 1:cols
-            #     val = cql_row_get_column(row, c-1)
-            #     arraybuf[c] = cqlgetvalue(val, types[c], strlen)
-            # end
-            row_vals = NT(Tuple([cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen) for c = 1:cols]))
-            output[r] = row_vals
-            # push!(output, arraybuf)
-
+            for c in 1:cols
+                val = cql_row_get_column(row, c-1)
+                arraybuf[c] = cqlgetvalue(val, types[c], strlen)
+            end
+            push!(output, arraybuf)     
         end
         
         morepages = cql_result_has_more_pages(result)
@@ -380,7 +370,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
         cql_result_free(result)
     end
     cql_statement_free(statement)
-    return err::UInt16, output::SA_Type
+    return err::UInt16, output::DataFrame
 end
 
 function cqlread(session::Ptr{CassSession}, queries::Array{String}; concurrency::Int=500, retries::Int=5, timeout::Int=10000, strlen::Int=128)
