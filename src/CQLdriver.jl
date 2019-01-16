@@ -345,7 +345,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
             types = [cqlvaltype(result, c-1) for c = 1:cols]
             names = Array{Symbol}(UndefInitializer(), cols)
             
-            @inbounds for c in 1:cols
+            for c in 1:cols
                 str = zeros(UInt8, strlen)
                 strref = Ref{Ptr{UInt8}}(pointer(str))
                 siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
@@ -360,7 +360,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
 
         iterator = cql_iterator_from_result(result)
         output_arr = SA_Type(undef, rows)
-        @inbounds for r = eachindex(output_arr)
+        for r = eachindex(output_arr)
             cql_iterator_next(iterator)
             row = cql_iterator_get_row(iterator)
             row_vals = NT(Tuple([cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen) for c = 1:cols]))
