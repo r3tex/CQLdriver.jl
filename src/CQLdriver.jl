@@ -365,7 +365,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
             row = cql_iterator_get_row(iterator)
             output_arr[r] = NT(Tuple([cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen) for c = 1:cols]))
         end
-        ouptut = vcat(output, output_arr)
+        output = vcat(output, output_arr)
         morepages = cql_result_has_more_pages(result)
         cql_statement_set_paging_state(statement, result)
         cql_iterator_free(iterator)
