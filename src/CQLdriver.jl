@@ -291,6 +291,38 @@ function cqlclose(session::Ptr{CassSession}, cluster::Ptr{CassCluster})
     cql_cluster_free(cluster)
 end
 
+function _cqlresultscheck(session::Ptr{CassSession}, statement::Ptr{CassStatement}, future::Ptr{CassFuture}, retries::Int)
+    while(true)
+        future = cql_session_execute(session, statement)
+        err = cqlfuturecheck(future, "Session Execute")
+        err == CQL_OK && break
+        if (err != CQL_OK) & (retries == 0)
+            cql_statement_free(statement)
+            cql_future_free(future)
+            return err
+        end
+        sleep(1)
+        retries -= 1
+        cql_future_free(future)
+    end
+    return CQL_OK
+end
+
+function _cqlprocessresult!(result::Ptr{CassResult}, output_arr::StructArray{NT}, statement::Ptr{CassStatement}, types::Vector, cols::Int, strlen::Int) where {NT}
+    iterator = cql_iterator_from_result(result)
+    for r = eachindex(output_arr)
+        cql_iterator_next(iterator)
+        row = cql_iterator_get_row(iterator)
+        output_arr[r] = NT(Tuple([cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen) for c = 1:cols]))
+    end
+    morepages = cql_result_has_more_pages(result)
+    cql_statement_set_paging_state(statement, result)
+    cql_iterator_free(iterator)
+    cql_result_free(result)
+
+    return morepages
+end
+
 """
     function cqlread(session, query; pgsize, retries, strlen)
     function cqlread(session, queries, concurrency; strlen)
@@ -314,62 +346,56 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
     cql_statement_set_paging_size(statement, pgsize)
     
     # output = DataFrame()
-    output = nothing
     morepages = true
-    firstpage = true
     err = CQL_OK
-    types = nothing
-    NT = nothing
-    SA_Type = nothing
+
+    # process first page
+    future = Ptr{CassFuture}
+
+    err = _cqlresultscheck(session, statement, future, retries)
+    if err != CQL_OK
+        return err::UInt16, output::StructArray
+    end
+
+    # get result
+    result = cql_future_get_result(future)
+    cql_future_free(future)
+    rows, cols = size(result)
+
+    # define all the types we will need
+    types = [cqlvaltype(result, c-1) for c = 1:cols]
+    names = Array{Symbol}(UndefInitializer(), cols)
+    
+    for c in 1:cols
+        str = zeros(UInt8, strlen)
+        strref = Ref{Ptr{UInt8}}(pointer(str))
+        siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
+        errcol = cql_result_column_name(result, c-1, strref, siz)
+        names[c] = Symbol(ifelse(errcol == CQL_OK, unsafe_string(strref[]), string("C",c)))
+    end
+    NT = NamedTuple{Tuple(names), Tuple{types...}}
+    SA_Type = StructArray{NT}
+    output = SA_Type(undef, rows)
+
+    morepages = _cqlprocessresult!(result, output, statement, types, cols, strlen)
+
     while(morepages)
         future = Ptr{CassFuture}
-        while(true)
-            future = cql_session_execute(session, statement)
-            err = cqlfuturecheck(future, "Session Execute")
-            err == CQL_OK && break
-            if (err != CQL_OK) & (retries == 0)
-                cql_statement_free(statement)
-                cql_future_free(future)
-                return err::UInt16, output::StructArray 
-            end
-            sleep(1)
-            retries -= 1
-            cql_future_free(future)
-        end    
-        
+
+        err = _cqlresultscheck(session, statement, future, retries)
+        if err != CQL_OK
+            return err::UInt16, output::StructArray
+        end
+    
+        # get result
         result = cql_future_get_result(future)
         cql_future_free(future)
         rows, cols = size(result)
-
-        if firstpage
-            types = [cqlvaltype(result, c-1) for c = 1:cols]
-            names = Array{Symbol}(UndefInitializer(), cols)
-            
-            for c in 1:cols
-                str = zeros(UInt8, strlen)
-                strref = Ref{Ptr{UInt8}}(pointer(str))
-                siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
-                errcol = cql_result_column_name(result, c-1, strref, siz)
-                names[c] = Symbol(ifelse(errcol == CQL_OK, unsafe_string(strref[]), string("C",c)))
-            end
-            NT = NamedTuple{Tuple(names), Tuple{types...}}
-            SA_Type = StructArray{NT}
-            output = SA_Type(undef, 0)
-            firstpage = false
-        end
-
-        iterator = cql_iterator_from_result(result)
         output_arr = SA_Type(undef, rows)
-        for r = eachindex(output_arr)
-            cql_iterator_next(iterator)
-            row = cql_iterator_get_row(iterator)
-            output_arr[r] = NT(Tuple([cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen) for c = 1:cols]))
-        end
+
+        morepages = _cqlprocessresult!(result, output_arr, statement, types, cols, strlen)
+
         output = vcat(output, output_arr)
-        morepages = cql_result_has_more_pages(result)
-        cql_statement_set_paging_state(statement, result)
-        cql_iterator_free(iterator)
-        cql_result_free(result)
     end
     cql_statement_free(statement)
     return err::UInt16, output::SA_Type
