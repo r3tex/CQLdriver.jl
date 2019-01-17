@@ -291,7 +291,8 @@ function cqlclose(session::Ptr{CassSession}, cluster::Ptr{CassCluster})
     cql_cluster_free(cluster)
 end
 
-function _cqlresultscheck(session::Ptr{CassSession}, statement::Ptr{CassStatement}, future::Type{Ptr{CassFuture}}, retries::Int)
+function _cqlresultscheck(session::Ptr{CassSession}, statement::Ptr{CassStatement}, retries::Int)
+    future = nothing
     while(true)
         future = cql_session_execute(session, statement)
         err = cqlfuturecheck(future, "Session Execute")
@@ -305,7 +306,7 @@ function _cqlresultscheck(session::Ptr{CassSession}, statement::Ptr{CassStatemen
         retries -= 1
         cql_future_free(future)
     end
-    return CQL_OK
+    return CQL_OK, future
 end
 
 function _cqlprocessresult!(result::Ptr{CassResult}, output_arr::StructArray{NT}, statement::Ptr{CassStatement}, types::Vector, cols::Int, strlen::Int) where {NT}
@@ -350,9 +351,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
     err = CQL_OK
 
     # process first page
-    future = Ptr{CassFuture}
-
-    err = _cqlresultscheck(session, statement, future, retries)
+    err, future = _cqlresultscheck(session, statement, future, retries)
     if err != CQL_OK
         return err::UInt16, StructArray()
     end
@@ -380,11 +379,9 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
     morepages = _cqlprocessresult!(result, output, statement, types, cols, strlen)
 
     while(morepages)
-        future = Ptr{CassFuture}
-
-        err = _cqlresultscheck(session, statement, future, retries)
+        err, future = _cqlresultscheck(session, statement, retries)
         if err != CQL_OK
-            return err::UInt16, output::StructArray
+            return err::UInt16, output::SA_Type
         end
     
         # get result
