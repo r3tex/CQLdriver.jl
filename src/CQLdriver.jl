@@ -351,7 +351,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
     err = CQL_OK
 
     # process first page
-    err, future = _cqlresultscheck(session, statement, future, retries)
+    err, future = _cqlresultscheck(session, statement, retries)
     if err != CQL_OK
         return err::UInt16, StructArray()
     end
