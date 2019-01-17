@@ -291,7 +291,7 @@ function cqlclose(session::Ptr{CassSession}, cluster::Ptr{CassCluster})
     cql_cluster_free(cluster)
 end
 
-function _cqlresultscheck(session::Ptr{CassSession}, statement::Ptr{CassStatement}, future::Ptr{CassFuture}, retries::Int)
+function _cqlresultscheck(session::Ptr{CassSession}, statement::Ptr{CassStatement}, future::Type{Ptr{CassFuture}}, retries::Int)
     while(true)
         future = cql_session_execute(session, statement)
         err = cqlfuturecheck(future, "Session Execute")
@@ -354,7 +354,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
 
     err = _cqlresultscheck(session, statement, future, retries)
     if err != CQL_OK
-        return err::UInt16, output::StructArray
+        return err::UInt16, StructArray()
     end
 
     # get result
