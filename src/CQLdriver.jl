@@ -311,7 +311,7 @@ end
 
 function _cqlprocessresult!(result::Ptr{CassResult}, output_arr::StructArray{NT}, statement::Ptr{CassStatement}, types::Vector, cols::Int, strlen::Int) where {NT}
     iterator = cql_iterator_from_result(result)
-    for r = eachindex(output_arr)
+    @inbounds for r = eachindex(output_arr)
         cql_iterator_next(iterator)
         row = cql_iterator_get_row(iterator)
         output_arr[r] = NT(Tuple([cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen) for c = 1:cols]))
@@ -365,7 +365,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
     types = [cqlvaltype(result, c-1) for c = 1:cols]
     names = Array{Symbol}(UndefInitializer(), cols)
     
-    for c in 1:cols
+    @inbounds for c = eachindex(names)
         str = zeros(UInt8, strlen)
         strref = Ref{Ptr{UInt8}}(pointer(str))
         siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
@@ -399,7 +399,7 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
 end
 
 function cqlread(session::Ptr{CassSession}, queries::Array{String}; concurrency::Int=500, retries::Int=5, timeout::Int=10000, strlen::Int=128)
-    out = Array{DataFrame}(UndefInitializer(), 0)
+    out = Array{StructArray}(UndefInitializer(), 0)
     err = CQL_OK
 
     for query in 1:concurrency:length(queries)
@@ -441,22 +441,19 @@ function cqlread(session::Ptr{CassSession}, queries::Array{String}; concurrency:
         for result in results
             rows, cols = size(result)
             iterator = cql_iterator_from_result(result)
-            df, types = cqlbuilddf(result, strlen)
-            arraybuf = Array{Any}(UndefInitializer(), cols)
-            for r in 1:rows
+            sa, types = cqlbuildstructarray(result, strlen)
+            NT = eltype(sa)
+            @inbounds for r = eachindex(sa)
                 cql_iterator_next(iterator)
                 row = cql_iterator_get_row(iterator)
-                for c in 1:cols
-                    arraybuf[c] = cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen)
-                end
-                push!(df, arraybuf)
+                sa[r] = NT(Tuple([cqlgetvalue(cql_row_get_column(row, c-1), types[c], strlen) for c = 1:cols]))
             end
-            push!(out, df)
+            push!(out, sa)
             cql_iterator_free(iterator)
             cql_result_free(result)            
         end
     end
-    return err::UInt16, out::Array{DataFrame}
+    return err::UInt16, out
 end
 
 function cqlbuilddf(result::Ptr{CassResult}, strlen::Int)
@@ -475,6 +472,23 @@ function cqlbuilddf(result::Ptr{CassResult}, strlen::Int)
     end
     output = DataFrame(types, names, 0)
     return output::DataFrame, types::Array{Union}
+end
+
+function cqlbuildstructarray(result::Ptr{CassResult}, strlen::Int)
+    rows, cols = size(result)
+    types = [cqlvaltype(result, c-1) for c = 1:cols]
+    names = Array{Symbol}(UndefInitializer(), cols)
+    for c in 1:cols
+        str = zeros(UInt8, strlen)
+        strref = Ref{Ptr{UInt8}}(pointer(str))
+        siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
+        errcol = cql_result_column_name(result, c-1, strref, siz)
+        names[c] = Symbol(ifelse(errcol == CQL_OK, unsafe_string(strref[]), string("C",c)))
+    end
+    NT = NamedTuple{Tuple(names), Tuple{types...}}
+    SA_Type = StructArray{NT}
+    output = SA_Type(undef, rows)
+    return output::SA_Type, types
 end
 
 """
