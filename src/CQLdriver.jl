@@ -193,7 +193,7 @@ function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{String, Missing}}, strle
     strref = Ref{Ptr{UInt8}}(pointer(str))
     siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
     err = cql_value_get_string(val, strref, siz)
-    return ifelse(err == CQL_OK, unsafe_string(strref[]), missing)
+    return ifelse(err == CQL_OK, escape_string(unsafe_string(strref[])), missing)
 end
 
 function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{Float64, Missing}}, strlen::Int)
@@ -664,28 +664,37 @@ Write to a table
 # Return
 - `err::UInt16`: status of the insert
 """
-function cqlwrite(s::Ptr{CassSession}, table::String, data::Union{DataFrame, IndexedTable}; update::Union{DataFrame, IndexedTable, Nothing}=nothing, batchsize::Int=500, retries::Int=5, counter::Bool=false) 
+function cqlwrite(s::Ptr{CassSession}, cass_table::String, data::Union{DataFrame, IndexedTable}; update::Union{DataFrame, IndexedTable, Nothing}=nothing, batchsize::Int=500, retries::Int=5, counter::Bool=false) 
     rows, cols = size(data)
     rows == 0 && return 0x9999
+    err = CQL_OK
     if rows == 1
-        err = cqlrowwrite(s, table, data, retries=retries, update=update, counter=counter)
+        err = cqlrowwrite(s, cass_table, data, retries=retries, update=update, counter=counter)
     elseif rows <= batchsize
-        err = cqlbatchwrite(s, table, data, retries=retries, update=update, counter=counter)
+        err = cqlbatchwrite(s, cass_table, data, retries=retries, update=update, counter=counter)
     else
         pages = (rows ÷ batchsize)
-        err = zeros(UInt16, pages)
+        errs = zeros(UInt16, pages)
         @sync for p in 1:pages
             to = p * batchsize
             fr = to - batchsize + 1
             if p < pages                
-                @async err[p] = cqlbatchwrite(s, table, cass_tbl_slice(data, fr, to), retries=retries, update=update == nothing ? nothing : cass_tbl_slice(update, fr, to), counter=counter)
+                @async errs[p] = cqlbatchwrite(s, cass_table, cass_tbl_slice(data, fr, to), retries=retries, update=update == nothing ? nothing : cass_tbl_slice(update, fr, to), counter=counter)
             else
-                @async err[p] = cqlbatchwrite(s, table, cass_tbl_slice(data, fr, lastindex(data)), retries=retries, update=update==nothing ? nothing : cass_tbl_slice(update, fr, lastindex(update)), counter=counter)
+                @async errs[p] = cqlbatchwrite(s, cass_table, cass_tbl_slice(data, fr, lastindex(data)), retries=retries, update=update==nothing ? nothing : cass_tbl_slice(update, fr, lastindex(update)), counter=counter)
             end
         end
-        err = union(err)[1]
+        err = union(errs)[1]
     end
     return err::UInt16
+end
+
+function cqlwrite(s::Ptr{CassSession}, cass_table::String, data::JuliaDB.DIndexedTable; paritionsize::Int=100000, batchsize::Int=500, retries::Int=5, counter::Bool=false)
+    errs = Vector{UInt16}()
+    for tbl = Iterators.partition(data, paritionsize)
+        push!(errs, cqlwrite(s, cass_table, tbl; batchsize=batchsize, retries=retries, counter=counter))
+    end
+    return union(errs)[1]
 end
 
 """
