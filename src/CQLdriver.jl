@@ -13,6 +13,21 @@ function Base.size(result::Ptr{CassResult})
     return (Int(rows)::Int, Int(cols)::Int)
 end
 
+Base.size(data::IndexedTable) = length(data), length(colnames(data))
+
+# Table helpers
+cass_combine(tbl::DataFrame, other_tbl::DataFrame) = hcat(tbl, other_tbl)
+cass_combine(tbl::IndexedTable, other_tbl::IndexedTable) = merge(tbl, other_tbl)
+
+cass_tbl_select(tbl::IndexedTable, colindex::Int, rowindex::Int) = columns(tbl)[colindex][rowindex]
+cass_tbl_select(tbl::DataFrame, colindex::Int, rowindex::Int) = tbl[rowindex, colindex]
+
+cass_tbl_slice(tbl::IndexedTable, row_start::Int, row_end::Int) = view(tbl, row_start:row_end)
+cass_tbl_slice(tbl::DataFrame, row_start::Int, row_end::Int) = view(tbl, row_start:row_end, :)
+
+cass_col_names(tbl::IndexedTable) = colnames(tbl)
+cass_col_names(tbl::DataFrame) = names(tbl)
+
 """
     function cqlinit(hosts; username, password, threads, connections, queuesize, bytelimit, requestlimit)
 Change the performance characteristics of your CQL driver
@@ -220,10 +235,10 @@ create a prepared query string for use with batch inserts
 # Return
 - `out::String`: a valid INSERT or UPDATE query
 """
-function cqlstrprep(table::String, data::DataFrame; update::DataFrame=DataFrame(), counter::Bool=false)
+function cqlstrprep(table::String, data::Union{IndexedTable, DataFrame}; update::Union{IndexedTable, DataFrame}=nothing, counter::Bool=false)
     out = ""
-    if isempty(update)
-        datacolnames = string.(names(data))
+    if update == nothing
+        datacolnames = string.(cass_col_names(data))
         cols, vals = "", ""
 
         for c in datacolnames
@@ -232,8 +247,8 @@ function cqlstrprep(table::String, data::DataFrame; update::DataFrame=DataFrame(
         end
         out = "INSERT INTO " * table * " (" * cols[1:end-1] * ") VALUES (" * vals[1:end-1] * ")"
     else write == :update
-        datacolnames = string.(names(data))
-        updtcolnames = string.(names(update))
+        datacolnames = string.(cass_col_names(data))
+        updtcolnames = string.(cass_col_names(update))
         cols, vals = "", ""
         for c in datacolnames
             
@@ -504,8 +519,8 @@ Write a set of rows to a table as a prepared batch
 # Return
 - `err::UInt16`: status of the batch insert
 """
-function cqlbatchwrite(session::Ptr{CassSession}, table::String, data::DataFrame; retries::Int=5, update::DataFrame=DataFrame(), counter::Bool=false)
-    query = cqlstrprep(table, data, update=update, counter=counter)
+function cqlbatchwrite(session::Ptr{CassSession}, cass_table::String, data::DataFrame; retries::Int=5, update::DataFrame=DataFrame(), counter::Bool=false)
+    query = cqlstrprep(cass_table, data, update=update, counter=counter)
     future = cql_session_prepare(session, query)
     cql_future_wait(future)
     err = cqlfuturecheck(future, "Session Prepare") 
@@ -548,32 +563,77 @@ function cqlbatchwrite(session::Ptr{CassSession}, table::String, data::DataFrame
     return err::UInt16
 end
 
+function cqlbatchwrite(session::Ptr{CassSession}, table::String, data::IndexedTable; retries::Int=5, update::IndexedTable=nothing, counter::Bool=false)
+    query = cqlstrprep(table, data, update=update, counter=counter)
+    future = cql_session_prepare(session, query)
+    cql_future_wait(future)
+    err = cqlfuturecheck(future, "Session Prepare") 
+    if err != CQL_OK 
+        cql_future_free(future)
+        return err::UInt16
+    end
+    
+    prep = cql_future_get_prepared(future)
+    cql_future_free(future)
+    batchtype = ifelse(!counter, 0x00, 0x02)
+    batch = cql_batch_new(batchtype)
+    rows, cols = size(data)
+    frame = data
+    if update != nothing
+        urows, ucols = size(update)
+        cols += ucols
+        frame = merge(data, update)
+    end
+    for r in 1:rows
+        statement = cql_prepared_bind(prep)
+        for c in 1:cols
+            cqlstatementbind(statement, c-1, columns(frame)[c][r])
+        end
+        cql_batch_add_statement(batch, statement)
+        cql_statement_free(statement)
+    end
+    while(true)
+        future = cql_session_execute_batch(session, batch)
+        cql_future_wait(future)
+        err = cqlfuturecheck(future, "Execute Batch")
+        cql_future_free(future)
+        err == CQL_OK && break
+        retries == 0 && break
+        retries -= 1
+        sleep(1)
+    end
+    cql_prepared_free(prep)
+    cql_batch_free(batch)
+    return err::UInt16
+end
+
 """
     function cqlrowwrite(session, table, data; retries, update, counter)
 Write one row of data to a table
 # Arguments
 - `session::Ptr{CassSession}`: pointer to the active session
-- `table::String`: the name of the table you want to write to
-- `data::DataFrame`: a DataFrame with named columns
+- `cass_table::String`: the name of the table you want to write to
+- `data::Union{IndexedTable, DataFrame}`: a DataFrame or IndexedTable with named columns
 - `retries::Int=5`: number of retries per batch insert
 - `update::DataFrame`: the arguments for WHERE during an UPDATE
 - `counter::Bool`: for updating the counter datatype
 # Return
 - `err::UInt16`: status of the insert
 """
-function cqlrowwrite(session::Ptr{CassSession}, table::String, data::DataFrame; retries::Int=5, update::DataFrame=DataFrame(), counter::Bool=false)
+
+function cqlrowwrite(session::Ptr{CassSession}, cass_table::String, data::Union{DataFrame, IndexedTable}; retries::Int=5, update::Union{DataFrame, IndexedTable} = nothing, counter::Bool = false)
     err = CQL_OK
-    query = cqlstrprep(table, data, update=update, counter=counter)
+    query = cqlstrprep(cass_table, data, update=update, counter=counter)
     rows, cols = size(data)
-    frame = data    
-    if !isempty(size(update))
+    frame = data
+    if update != nothing
         urows, ucols = size(update)
         cols += ucols
-        frame = hcat(data, update)
+        frame = cass_combine(data, update)
     end
     statement = cql_statement_new(query, cols)
     for c in 1:cols
-        cqlstatementbind(statement, c-1, frame[1,c])
+        cqlstatementbind(statement, c-1, cass_tbl_select(frame, c, 1))
     end
 
     while(true) 
@@ -604,7 +664,7 @@ Write to a table
 # Return
 - `err::UInt16`: status of the insert
 """
-function cqlwrite(s::Ptr{CassSession}, table::String, data::DataFrame; update::DataFrame=DataFrame(), batchsize::Int=500, retries::Int=5, counter::Bool=false) 
+function cqlwrite(s::Ptr{CassSession}, table::String, data::Union{DataFrame, IndexedTable}; update::Union{DataFrame, IndexedTable}=nothing, batchsize::Int=500, retries::Int=5, counter::Bool=false) 
     rows, cols = size(data)
     rows == 0 && return 0x9999
     if rows == 1
@@ -618,9 +678,9 @@ function cqlwrite(s::Ptr{CassSession}, table::String, data::DataFrame; update::D
             to = p * batchsize
             fr = to - batchsize + 1
             if p < pages                
-                @async err[p] = cqlbatchwrite(s, table, data[fr:to,:], retries=retries, update=isempty(update) ? DataFrame() : update[fr:to,:], counter=counter)
+                @async err[p] = cqlbatchwrite(s, table, cass_tbl_slice(data, fr, to), retries=retries, update=update == nothing ? nothing : cass_tbl_slice(update, fr, to), counter=counter)
             else
-                @async err[p] = cqlbatchwrite(s, table, data[fr:end,:], retries=retries, update=isempty(update) ? DataFrame() : update[fr:end,:], counter=counter)
+                @async err[p] = cqlbatchwrite(s, table, cass_tbl_slice(data, fr, lastindex(data)), retries=retries, update==nothing ? nothing : cass_tbl_slice(update, fr, lastindex(data)), counter=counter)
             end
         end
         err = union(err)[1]
