@@ -520,7 +520,7 @@ Write a set of rows to a table as a prepared batch
 # Return
 - `err::UInt16`: status of the batch insert
 """
-function cqlbatchwrite(session::Ptr{CassSession}, cass_table::String, data::DataFrame; retries::Int=5, update::Union{DataFrame, Nothing}=DataFrame(), counter::Bool=false)
+function cqlbatchwrite(session::Ptr{CassSession}, cass_table::String, data::SubDataFrame; retries::Int=5, update::Union{SubDataFrame, Nothing}=DataFrame(), counter::Bool=false)
     query = cqlstrprep(cass_table, data, update=update, counter=counter)
     future = cql_session_prepare(session, query)
     cql_future_wait(future)
