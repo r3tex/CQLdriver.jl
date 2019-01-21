@@ -536,7 +536,7 @@ function cqlbatchwrite(session::Ptr{CassSession}, cass_table::String, data::Abst
     batch = cql_batch_new(batchtype)
     rows, cols = size(data)
     frame = data
-    if !isempty(size(update))
+    if update != nothing
         urows, ucols = size(update)
         cols += ucols
         frame = hcat(data, update)
