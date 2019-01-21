@@ -16,17 +16,17 @@ end
 Base.size(data::IndexedTable) = length(data), length(colnames(data))
 
 # Table helpers
-cass_combine(tbl::DataFrame, other_tbl::DataFrame) = hcat(tbl, other_tbl)
+cass_combine(tbl::AbstractDataFrame, other_tbl::AbstractDataFrame) = hcat(tbl, other_tbl)
 cass_combine(tbl::IndexedTable, other_tbl::IndexedTable) = merge(tbl, other_tbl)
 
 cass_tbl_select(tbl::IndexedTable, colindex::Int, rowindex::Int) = columns(tbl)[colindex][rowindex]
-cass_tbl_select(tbl::DataFrame, colindex::Int, rowindex::Int) = tbl[rowindex, colindex]
+cass_tbl_select(tbl::AbstractDataFrame, colindex::Int, rowindex::Int) = tbl[rowindex, colindex]
 
 cass_tbl_slice(tbl::IndexedTable, row_start::Int, row_end::Int) = view(tbl, row_start:row_end)
-cass_tbl_slice(tbl::DataFrame, row_start::Int, row_end::Int) = view(tbl, row_start:row_end, :)
+cass_tbl_slice(tbl::AbstractDataFrame, row_start::Int, row_end::Int) = view(tbl, row_start:row_end, :)
 
 cass_col_names(tbl::IndexedTable) = colnames(tbl)
-cass_col_names(tbl::DataFrame) = names(tbl)
+cass_col_names(tbl::AbstractDataFrame) = names(tbl)
 
 """
     function cqlinit(hosts; username, password, threads, connections, queuesize, bytelimit, requestlimit)
@@ -236,7 +236,7 @@ create a prepared query string for use with batch inserts
 # Return
 - `out::String`: a valid INSERT or UPDATE query
 """
-function cqlstrprep(table::String, data::Union{IndexedTable, DataFrame}; update::Union{IndexedTable, DataFrame, Nothing}=nothing, counter::Bool=false)
+function cqlstrprep(table::String, data::Union{IndexedTable, AbstractDataFrame}; update::Union{IndexedTable, AbstractDataFrame, Nothing}=nothing, counter::Bool=false)
     out = ""
     if update == nothing
         datacolnames = string.(cass_col_names(data))
@@ -520,7 +520,7 @@ Write a set of rows to a table as a prepared batch
 # Return
 - `err::UInt16`: status of the batch insert
 """
-function cqlbatchwrite(session::Ptr{CassSession}, cass_table::String, data::SubDataFrame; retries::Int=5, update::Union{SubDataFrame, Nothing}=DataFrame(), counter::Bool=false)
+function cqlbatchwrite(session::Ptr{CassSession}, cass_table::String, data::AbstractDataFrame; retries::Int=5, update::Union{AbstractDataFrame, Nothing}=DataFrame(), counter::Bool=false)
     query = cqlstrprep(cass_table, data, update=update, counter=counter)
     future = cql_session_prepare(session, query)
     cql_future_wait(future)
