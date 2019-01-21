@@ -680,7 +680,7 @@ function cqlwrite(s::Ptr{CassSession}, table::String, data::Union{DataFrame, Ind
             if p < pages                
                 @async err[p] = cqlbatchwrite(s, table, cass_tbl_slice(data, fr, to), retries=retries, update=update == nothing ? nothing : cass_tbl_slice(update, fr, to), counter=counter)
             else
-                @async err[p] = cqlbatchwrite(s, table, cass_tbl_slice(data, fr, lastindex(data)), retries=retries, update==nothing ? nothing : cass_tbl_slice(update, fr, lastindex(data)), counter=counter)
+                @async err[p] = cqlbatchwrite(s, table, cass_tbl_slice(data, fr, lastindex(data)), retries=retries, update=update==nothing ? nothing : cass_tbl_slice(update, fr, lastindex(update)), counter=counter)
             end
         end
         err = union(err)[1]
