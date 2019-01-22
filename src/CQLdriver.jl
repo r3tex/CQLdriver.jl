@@ -193,8 +193,7 @@ function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{String, Missing}}, strle
     strref = Ref{Ptr{UInt8}}(pointer(str))
     siz = Ref{Csize_t}(sizeof(str))
     err = cql_value_get_string(val, strref, siz)
-    println(siz[])
-    return ifelse(err == CQL_OK, unsafe_string(strref[]), missing)
+    return ifelse(err == CQL_OK, unsafe_string(strref[], siz[]), missing)
 end
 
 function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{Float64, Missing}}, strlen::Int)
