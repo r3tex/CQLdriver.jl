@@ -92,9 +92,9 @@ function cqlfuturecheck(future::Ptr{CassFuture}, caller::String = "")
         println("Error in CQL operation: ", caller)
         str = Vector{UInt8}(undef, 256)
         strref = Ref{Ptr{UInt8}}(pointer(str))
-        siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
+        siz = Ref{Csize_t}(sizeof(str))
         cql_future_error_message(future, strref, siz)
-        println(unsafe_string(strref[]))
+        println(unsafe_string(strref[], siz))
     end
     return err::UInt16
 end
@@ -383,9 +383,9 @@ function cqlread(session::Ptr{CassSession}, query::String; pgsize::Int=10000, re
     @inbounds for c = eachindex(names)
         str = zeros(UInt8, strlen)
         strref = Ref{Ptr{UInt8}}(pointer(str))
-        siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
+        siz = Ref{Csize_t}(sizeof(str))
         errcol = cql_result_column_name(result, c-1, strref, siz)
-        names[c] = Symbol(ifelse(errcol == CQL_OK, unsafe_string(strref[]), string("C",c)))
+        names[c] = Symbol(ifelse(errcol == CQL_OK, unsafe_string(strref[], siz), string("C",c)))
     end
     NT = NamedTuple{Tuple(names), Tuple{types...}}
     SA_Type = StructArray{NT}
@@ -481,9 +481,9 @@ function cqlbuilddf(result::Ptr{CassResult}, strlen::Int)
     for c in 1:cols
         str = zeros(UInt8, strlen)
         strref = Ref{Ptr{UInt8}}(pointer(str))
-        siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
+        siz = Ref{Csize_t}(sizeof(str))
         errcol = cql_result_column_name(result, c-1, strref, siz)
-        names[c] = Symbol(ifelse(errcol == CQL_OK, unsafe_string(strref[]), string("C",c)))
+        names[c] = Symbol(ifelse(errcol == CQL_OK, unsafe_string(strref[], siz), string("C",c)))
     end
     output = DataFrame(types, names, 0)
     return output::DataFrame, types::Array{Union}
@@ -496,9 +496,9 @@ function cqlbuildstructarray(result::Ptr{CassResult}, strlen::Int)
     for c in 1:cols
         str = zeros(UInt8, strlen)
         strref = Ref{Ptr{UInt8}}(pointer(str))
-        siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
+        siz = Ref{Csize_t}(sizeof(str))
         errcol = cql_result_column_name(result, c-1, strref, siz)
-        names[c] = Symbol(ifelse(errcol == CQL_OK, unsafe_string(strref[]), string("C",c)))
+        names[c] = Symbol(ifelse(errcol == CQL_OK, unsafe_string(strref[], siz), string("C",c)))
     end
     NT = NamedTuple{Tuple(names), Tuple{types...}}
     SA_Type = StructArray{NT}

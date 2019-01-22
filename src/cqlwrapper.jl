@@ -82,7 +82,7 @@ function cql_future_error_code(future::Ptr{CassFuture})
     return val::UInt16
 end
 
-function cql_future_error_message(future::Ptr{CassFuture}, strref::Ref{Ptr{UInt8}}, siz::Ptr{Nothing})
+function cql_future_error_message(future::Ptr{CassFuture}, strref::Ref{Ptr{UInt8}}, siz::Ref{Csize_t})
     ccall(
         (:cass_future_error_message, "libcassandra.so.2"),
         Nothing,
@@ -228,7 +228,7 @@ function cql_value_get_int32(val::Ptr{CassValue}, out::Ref{Cint})
     return err::UInt16
 end
 
-function cql_result_column_name(val::Ptr{CassResult}, pos::Int, out::Ref{Ptr{UInt8}}, siz::Ptr{Nothing})
+function cql_result_column_name(val::Ptr{CassResult}, pos::Int, out::Ref{Ptr{UInt8}}, siz::Ref{Csize_t})
     err = ccall(
             (:cass_result_column_name, "libcassandra.so.2"),
             Cushort,
