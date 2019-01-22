@@ -90,7 +90,7 @@ function cqlfuturecheck(future::Ptr{CassFuture}, caller::String = "")
     # only prints valid messages for client errors
     if err != CQL_OK
         println("Error in CQL operation: ", caller)
-        str = zeros(UInt8, 256)
+        str = Vector{UInt8}(undef, 256)
         strref = Ref{Ptr{UInt8}}(pointer(str))
         siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
         cql_future_error_message(future, strref, siz)
@@ -189,11 +189,11 @@ function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{Int8, Missing}}, strlen:
 end
 
 function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{String, Missing}}, strlen::Int)
-    str = zeros(UInt8, strlen)
+    str = Vector{UInt8}(undef, strlen)
     strref = Ref{Ptr{UInt8}}(pointer(str))
-    siz = pointer_from_objref(Ref{Csize_t}(sizeof(str)))
+    siz = Ref{Csize_t}(sizeof(str))
     err = cql_value_get_string(val, strref, siz)
-    # println(unsafe_string(strref[]))
+    println(siz[])
     return ifelse(err == CQL_OK, unsafe_string(strref[]), missing)
 end
 

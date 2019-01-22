@@ -255,7 +255,7 @@ function cql_value_get_bool(val::Ptr{CassValue}, out::Ref{Cint})
     return err::UInt16
 end
 
-function cql_value_get_string(val::Ptr{CassValue}, out::Ref{Ptr{UInt8}}, siz::Ptr{Nothing})
+function cql_value_get_string(val::Ptr{CassValue}, out::Ref{Ptr{UInt8}}, siz::Ref{Csize_t})
     err = ccall(
             (:cass_value_get_string, "libcassandra.so.2"),
             Cushort,
