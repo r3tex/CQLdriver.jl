@@ -124,7 +124,7 @@ end
 
 function cql_cluster_set_whitelist_filtering(cluster::Ptr{CassCluster}, hosts::String)
     ccall(
-        (:cass_clustcass_cluster_set_whitelist_filtering, "libcassandra.so.2"),
+        (:cass_cluster_set_whitelist_filtering, "libcassandra.so.2"),
         Nothing,
         (Ptr{CassCluster}, Cstring),
         cluster, hosts)
