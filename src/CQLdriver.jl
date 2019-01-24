@@ -70,7 +70,7 @@ function cqlinit(hosts::String; username = "", password = "", whitelist = "", th
         err = cql_cluster_set_pending_requests_high_water_mark(cluster, requestlimit) | err
     end
     if whitelist != ""
-        err = cql_cluster_set_whitelist_filtering(cluster, whitelist) | err
+        cql_cluster_set_whitelist_filtering(cluster, whitelist)
     end
 
     cql_cluster_set_contact_points(cluster, hosts)
