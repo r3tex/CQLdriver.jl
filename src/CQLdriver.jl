@@ -40,12 +40,13 @@ Change the performance characteristics of your CQL driver
 - `queuesize::Int64`: set queuesize that stores pending requests (default 4096)
 - `bytelimit::Int64`: set max number of bytes pending on connection (default 65536 - 64KB)
 - `requestlimit::Int64`: set max number of requests pending on connection (default 128 * connections)
+- `whitelist::String`: set whiteslist of hosts - will only connect to these hosts and all other connections will be ignored
 ## Return
 - `session::Ptr{CassSession}`: a pointer to the active session
 - `cluster::Ptr{CassCluster}`: a pointer to the cluster
 - `err::UInt`: a 16 bit integer with an error code. No error returns 0
 """
-function cqlinit(hosts::String; username = "", password = "", threads = 0, connections = 0, queuesize = 0, bytelimit = 0, requestlimit = 0)
+function cqlinit(hosts::String; username = "", password = "", whitelist = "", threads = 0, connections = 0, queuesize = 0, bytelimit = 0, requestlimit = 0)
     cluster = cql_cluster_new()
     session = cql_session_new()
 
@@ -67,6 +68,9 @@ function cqlinit(hosts::String; username = "", password = "", threads = 0, conne
     end
     if requestlimit != 0
         err = cql_cluster_set_pending_requests_high_water_mark(cluster, requestlimit) | err
+    end
+    if whitelist != ""
+        err = cql_cluster_set_whitelist_filtering(cluster, whitelist) | err
     end
 
     cql_cluster_set_contact_points(cluster, hosts)
