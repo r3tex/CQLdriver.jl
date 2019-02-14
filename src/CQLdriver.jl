@@ -28,6 +28,9 @@ cass_tbl_slice(tbl::AbstractDataFrame, row_start::Int, row_end::Int) = view(tbl,
 cass_col_names(tbl::IndexedTable) = colnames(tbl)
 cass_col_names(tbl::AbstractDataFrame) = names(tbl)
 
+cass_get_lastindex(tbl::IndexedTable) = lastindex(tbl)
+cass_get_lastindex(tbl::AbstractDataFrame) = lastindex(tbl, 1)
+
 """
     function cqlinit(hosts; username, password, threads, connections, queuesize, bytelimit, requestlimit)
 Change the performance characteristics of your CQL driver
@@ -523,7 +526,7 @@ Write a set of rows to a table as a prepared batch
 # Return
 - `err::UInt16`: status of the batch insert
 """
-function cqlbatchwrite(session::Ptr{CassSession}, cass_table::String, data::AbstractDataFrame; retries::Int=5, update::Union{AbstractDataFrame, Nothing}=DataFrame(), counter::Bool=false)
+function cqlbatchwrite(session::Ptr{CassSession}, cass_table::String, data::AbstractDataFrame; retries::Int=5, update::Union{AbstractDataFrame, Nothing}=nothing, counter::Bool=false)
     query = cqlstrprep(cass_table, data, update=update, counter=counter)
     future = cql_session_prepare(session, query)
     cql_future_wait(future)
@@ -685,7 +688,7 @@ function cqlwrite(s::Ptr{CassSession}, cass_table::String, data::Union{DataFrame
             if p < pages                
                 @async errs[p] = cqlbatchwrite(s, cass_table, cass_tbl_slice(data, fr, to), retries=retries, update=update == nothing ? nothing : cass_tbl_slice(update, fr, to), counter=counter)
             else
-                @async errs[p] = cqlbatchwrite(s, cass_table, cass_tbl_slice(data, fr, lastindex(data)), retries=retries, update=update==nothing ? nothing : cass_tbl_slice(update, fr, lastindex(update)), counter=counter)
+                @async errs[p] = cqlbatchwrite(s, cass_table, cass_tbl_slice(data, fr, cass_get_lastindex(data)), retries=retries, update=update==nothing ? nothing : cass_tbl_slice(update, fr, cass_get_lastindex(update)), counter=counter)
             end
         end
         err = union(errs)[1]
