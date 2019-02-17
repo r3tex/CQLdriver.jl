@@ -130,6 +130,14 @@ function cql_cluster_set_whitelist_filtering(cluster::Ptr{CassCluster}, hosts::S
         cluster, hosts)
 end
 
+function cql_cluster_set_blacklist_filtering(cluster::Ptr{CassCluster}, hosts::String)
+    ccall(
+        (:cass_cluster_set_blacklist_filtering, "libcassandra.so.2"),
+        Nothing,
+        (Ptr{CassCluster}, Cstring),
+        cluster, hosts)
+end
+
 function cql_session_connect(session::Ptr{CassSession}, cluster::Ptr{CassCluster})
     val = ccall(
             (:cass_session_connect, "libcassandra.so.2"),

@@ -49,7 +49,7 @@ Change the performance characteristics of your CQL driver
 - `cluster::Ptr{CassCluster}`: a pointer to the cluster
 - `err::UInt`: a 16 bit integer with an error code. No error returns 0
 """
-function cqlinit(hosts::String; username = "", password = "", whitelist = "", threads = 0, connections = 0, queuesize = 0, bytelimit = 0, requestlimit = 0)
+function cqlinit(hosts::String; username = "", password = "", whitelist = "", blacklist="", threads = 0, connections = 0, queuesize = 0, bytelimit = 0, requestlimit = 0)
     cluster = cql_cluster_new()
     session = cql_session_new()
 
@@ -74,6 +74,9 @@ function cqlinit(hosts::String; username = "", password = "", whitelist = "", th
     end
     if whitelist != ""
         cql_cluster_set_whitelist_filtering(cluster, whitelist)
+    end
+    if blacklist != ""
+        cql_cluster_set_blacklist_filtering(cluster, blacklist)
     end
 
     cql_cluster_set_contact_points(cluster, hosts)
