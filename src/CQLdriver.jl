@@ -674,7 +674,7 @@ Write to a table
 # Return
 - `err::UInt16`: status of the insert
 """
-function cqlwrite(s::Ptr{CassSession}, cass_table::String, data::Union{DataFrame, IndexedTable}; update::Union{DataFrame, IndexedTable, Nothing}=nothing, batchsize::Int=500, retries::Int=5, counter::Bool=false) 
+function cqlwrite(s::Ptr{CassSession}, cass_table::String, data::Union{DataFrame, IndexedTable}; update::Union{DataFrame, IndexedTable, Nothing}=nothing, batchsize::Int=500, retries::Int=5, counter::Bool=false, returnanyerror=false) 
     rows, cols = size(data)
     rows == 0 && return 0x9999
     err = CQL_OK
@@ -694,7 +694,12 @@ function cqlwrite(s::Ptr{CassSession}, cass_table::String, data::Union{DataFrame
                 @async errs[p] = cqlbatchwrite(s, cass_table, cass_tbl_slice(data, fr, cass_get_lastindex(data)), retries=retries, update=update==nothing ? nothing : cass_tbl_slice(update, fr, cass_get_lastindex(update)), counter=counter)
             end
         end
-        err = union(errs)[1]
+        reterr = union(errs)
+        if returnanyerror
+            err = reterr[end]
+        else
+            err = reterr[1]
+        end
     end
     return err::UInt16
 end
