@@ -21,7 +21,7 @@ elseif has_yum
     inst = try success(`sudo yum install -y $cass_target`) catch e false end
     !inst && error("Unable to install CPP driver.")
 elseif has_apt
-    ubuntu_version = chomp(read(`lsb_release -r -s`, String))
+    ubuntu_version = chomp(read(pipeline(`cat os-release`, `grep -Eo "VERSION_ID=\"[0-9\.]+\""`, `grep -Eo "[^\"]+"`, `grep -E "[0-9.]+"`), String))
     cass_url = "http://downloads.datastax.com/cpp-driver/ubuntu/$(ubuntu_version)/cassandra/v" * version * "/"
     cass_file = "cassandra-cpp-driver_" * version * "-1_amd64.deb"
     cass_source = cass_url * cass_file
