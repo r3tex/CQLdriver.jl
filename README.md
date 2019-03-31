@@ -5,7 +5,7 @@ This Julia package is an interface to ScyllaDB / Cassandra and is based on the D
  - write very many rows quickly
  - read very many rows quickly
 
-Now, it's probably easy to extend this package to enable other features, but I haven't taken the time to do so. If you find this useful but are missing a small set of features I can probably implement them if you file an issue. CQLdriver depends on [DataFrames](https://github.com/JuliaData/DataFrames.jl).
+Now, it's probably easy to extend this package to enable other features, but I haven't taken the time to do so. If you find this useful but are missing a small set of features I can probably implement them if you file an issue. CQLdriver is compatible and depends on [DataFrames](https://github.com/JuliaData/DataFrames.jl) and [JuliaDB](https://github.com/JuliaComputing/JuliaDB.jl).
 
 Currently the following data-types are supported:
 
@@ -45,7 +45,7 @@ julia> cqlclose(session, cluster)
 The driver tries to be smart about detecting all the nodes in the cluster and keeping the connection alive.
 
 ### Writing data
-`cqlwrite()` takes a `DataFrame` with named columns.
+`cqlwrite()` takes a `DataFrame` with named columns, or a `JuliaDB` table.
 Make sure that the column names in your DataFrame are the same as those in table you are writing to.
 By default it will write 1000 rows per batch and will make 5 attemps at writing each batch.
 
