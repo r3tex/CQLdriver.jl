@@ -39,6 +39,3 @@ elseif has_apt
 else
     error("This package requires cassandra-cpp-driver to be installed, but the build system only understands apt and yum.")
 end
-
-
-

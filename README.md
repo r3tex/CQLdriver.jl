@@ -1,5 +1,7 @@
 # CQLdriver
 
+[![Build Status](https://travis-ci.com/r3tex/CQLdriver.jl.svg?branch=master)](https://travis-ci.com/r3tex/CQLdriver.jl)
+
 This Julia package is an interface to ScyllaDB / Cassandra and is based on the Datastax [CPP driver](http://datastax.github.io/cpp-driver/) implementing the CQL v3 binary protocol. The package is missing very many features, but it does two things quite well:
 
  - write very many rows quickly
