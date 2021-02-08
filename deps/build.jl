@@ -22,10 +22,10 @@ elseif has_yum
     !inst && error("Unable to install CPP driver.")
 elseif has_apt
     ubuntu_version = chomp(read(pipeline(`cat /etc/os-release`, `grep -Eo "VERSION_ID=\"[0-9\.]+\""`, `grep -Eo "[^\"]+"`, `grep -E "[0-9.]+"`), String))
-    cass_url = "http://downloads.datastax.com/cpp-driver/ubuntu/$(ubuntu_version)/cassandra/v" * version * "/"
+    cass_url = "http://downloads.datastax.com/cpp-driver/ubuntu/18.04/cassandra/v" * version * "/"
     cass_file = "cassandra-cpp-driver_" * version * "-1_amd64.deb"
     cass_source = cass_url * cass_file
-    libuv_url = "http://downloads.datastax.com/cpp-driver/ubuntu/$(ubuntu_version)/dependencies/libuv/v1.23.0/libuv1_1.23.0-1_amd64.deb"
+    libuv_url = "http://downloads.datastax.com/cpp-driver/ubuntu/18.04/dependencies/libuv/v1.23.0/libuv1_1.23.0-1_amd64.deb"
     cass_target = "/tmp/cassandra-cpp-driver.deb"
     libuv_target = "/tmp/libuv.deb"
     libuv_dl = success(`wget -O $libuv_target $libuv_url`)
