@@ -1,3 +1,5 @@
+using UUIDs
+
 macro genstruct(x)
     return :(mutable struct $x end)
 end
@@ -13,6 +15,7 @@ end
 @genstruct CassValue
 @genstruct CassPrepared
 @genstruct CassBatch
+@genstruct CassUuid
 
 function cql_cluster_set_concurrency(cluster::Ptr{CassCluster}, nthreads::Int64)
     val = ccall(
@@ -250,7 +253,7 @@ function cql_result_column_name(val::Ptr{CassResult}, pos::Int, out::Ref{Ptr{UIn
             Cushort,
             (Ptr{CassResult}, Clonglong, Ref{Ptr{UInt8}}, Ref{Csize_t}),
             val, pos, out, siz)
-    return err::UInt16 
+    return err::UInt16
 end
 
 function cql_value_get_uint32(val::Ptr{CassValue}, out::Ref{Cuint})
@@ -345,7 +348,7 @@ function cql_statement_set_request_timeout(statement::Ptr{CassStatement}, timeou
             Cushort,
             (Ptr{CassStatement}, Clonglong),
             statement, timeout)
-    return err::UInt16    
+    return err::UInt16
 end
 
 function cql_session_execute(session::Ptr{CassSession}, statement::Ptr{CassStatement})
@@ -430,9 +433,9 @@ end
 
 function cql_batch_new(batch_type::UInt8)
     #=
-    CASS_BATCH_TYPE_LOGGED = 0x00 
-    CASS_BATCH_TYPE_UNLOGGED = 0x01 
-    CASS_BATCH_TYPE_COUNTER = 0x02 
+    CASS_BATCH_TYPE_LOGGED = 0x00
+    CASS_BATCH_TYPE_UNLOGGED = 0x01
+    CASS_BATCH_TYPE_COUNTER = 0x02
     =#
     batch = ccall(
                 (:cass_batch_new, "libcassandra.so.2"),
@@ -458,6 +461,14 @@ function cql_prepared_bind(prep::Ptr{CassPrepared})
                     (Ptr{CassPrepared},),
                     prep)
     return statement::Ptr{CassStatement}
+end
+
+function cql_statement_bind_uuid(statement::Ptr{CassStatement}, pos::Int, data::UUID)
+    ccall(
+        (:cass_statement_bind_uuid, "libcassandra.so.2"),
+        Nothing,
+        (Ptr{CasStatement}, Cint, Ptr{CassUuid}),
+        statement, pos, data)
 end
 
 function cql_statement_bind_string(statement::Ptr{CassStatement}, pos::Int, data::String)
@@ -572,4 +583,3 @@ function cql_prepared_free(prep::Ptr{CassPrepared})
         (Ptr{CassPrepared},),
         prep)
 end
-
