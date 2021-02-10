@@ -478,7 +478,7 @@ function cql_uuid_gen_free(uuid_gen::CassUuidGen)
     ccall(
         (:cass_uuid_gen_free, "libcassandra.so.2"),
         Nothing,
-        (Ptr{CassUuidGen},)
+        (Ptr{CassUuidGen},),
         uuid_gen)
 end
 
@@ -496,7 +496,7 @@ function cql_statement_bind_uuid(statement::Ptr{CassStatement}, pos::Int, data::
     ccall(
         (:cass_statement_bind_uuid, "libcassandra.so.2"),
         Nothing,
-        (Ptr{CasStatement}, Cint, Ptr{CassUuid}),
+        (Ptr{CassStatement}, Cint, Ptr{CassUuid}),
         statement, pos, data)
 end
 
