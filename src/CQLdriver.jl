@@ -2,7 +2,9 @@ __precompile__(true)
 
 module CQLdriver
 using DataFrames, Dates, StructArrays, IndexedTables, JuliaDB
+
 export DataFrames, cqlinit, cqlclose, cqlwrite, cqlread, cqlexec
+export cql_uuid_gen_new, cql_uuid_gen_free, cql_uuid_gen_random
 
 include("cqlwrapper.jl")
 const CQL_OK = 0x0000
