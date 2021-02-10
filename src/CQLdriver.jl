@@ -283,6 +283,7 @@ Bind data to a column in a statement for use with batch inserts
 - `Void`:
 """
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Missing) = nothing # default to unset_value
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::CassUuid) = cql_statement_bind_uuid(statement, pos, data)
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::String) = cql_statement_bind_string(statement, pos, data)
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Bool) = cql_statement_bind_bool(statement, pos, data)
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Int8) = cql_statement_bind_int8(statement, pos, data)

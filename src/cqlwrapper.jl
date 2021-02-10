@@ -1,4 +1,6 @@
-using UUIDs
+using Base.Libc
+
+const SIZE_INT_128 = 16
 
 macro genstruct(x)
     return :(mutable struct $x end)
@@ -16,6 +18,7 @@ end
 @genstruct CassPrepared
 @genstruct CassBatch
 @genstruct CassUuid
+@genstruct CassUuidGen
 
 function cql_cluster_set_concurrency(cluster::Ptr{CassCluster}, nthreads::Int64)
     val = ccall(
@@ -463,7 +466,33 @@ function cql_prepared_bind(prep::Ptr{CassPrepared})
     return statement::Ptr{CassStatement}
 end
 
-function cql_statement_bind_uuid(statement::Ptr{CassStatement}, pos::Int, data::UUID)
+function cql_uuid_gen_new()
+    uuid_gen = ccall(
+        (:cass_uuid_gen_new, "libcassandra.so.2"),
+        Ptr{CassUuidGen},
+        ())
+    return uuid_gen::Ptr{CassUuidGen}
+end
+
+function cql_uuid_gen_free(uuid_gen::CassUuidGen)
+    ccall(
+        (:cass_uuid_gen_free, "libcassandra.so.2"),
+        Nothing,
+        (Ptr{CassUuidGen},)
+        uuid_gen)
+end
+
+function cql_uuid_gen_random(uuid_gen::CassUuidGen)
+    uuid = malloc(SIZE_INT_128)
+    ccall(
+        (:cass_uuid_gen_random, "libcassandra.so.2"),
+        Nothing,
+        (Ptr{CassUuidGen}, Ptr{CassUuid}),
+        uuid_gen, uuid)
+    return dereference(CassUuid,uuid)
+end
+
+function cql_statement_bind_uuid(statement::Ptr{CassStatement}, pos::Int, data::CassUuid)
     ccall(
         (:cass_statement_bind_uuid, "libcassandra.so.2"),
         Nothing,
