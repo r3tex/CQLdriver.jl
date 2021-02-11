@@ -483,13 +483,13 @@ function cql_uuid_gen_free(uuid_gen::Ptr{CassUuidGen})
 end
 
 function cql_uuid_gen_random(uuid_gen::Ptr{CassUuidGen})
-    uuid = malloc(SIZE_INT_128)
+    uuid::Ptr{CassUui}
     ccall(
         (:cass_uuid_gen_random, "libcassandra.so.2"),
         Nothing,
         (Ptr{CassUuidGen}, Ptr{CassUuid}),
         uuid_gen, uuid)
-    return dereference(CassUuid,uuid)
+    return uuid::Ptr{CassUui}
 end
 
 function cql_statement_bind_uuid(statement::Ptr{CassStatement}, pos::Int, data::CassUuid)
