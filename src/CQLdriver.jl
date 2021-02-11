@@ -1,7 +1,7 @@
 __precompile__(true)
 
 module CQLdriver
-using DataFrames, Dates, StructArrays, IndexedTables, JuliaDB
+using DataFrames, Dates, StructArrays
 
 export DataFrames, cqlinit, cqlclose, cqlwrite, cqlread, cqlexec, cql_uuid_gen_new, cql_uuid_gen_free, cql_uuid_gen_random
 
