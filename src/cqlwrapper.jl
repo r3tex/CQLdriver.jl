@@ -474,7 +474,7 @@ function cql_uuid_gen_new()
     return uuid_gen::Ptr{CassUuidGen}
 end
 
-function cql_uuid_gen_free(uuid_gen::CassUuidGen)
+function cql_uuid_gen_free(uuid_gen::Ptr{CassUuidGen})
     ccall(
         (:cass_uuid_gen_free, "libcassandra.so.2"),
         Nothing,
@@ -482,7 +482,7 @@ function cql_uuid_gen_free(uuid_gen::CassUuidGen)
         uuid_gen)
 end
 
-function cql_uuid_gen_random(uuid_gen::CassUuidGen)
+function cql_uuid_gen_random(uuid_gen::Ptr{CassUuidGen})
     uuid = malloc(SIZE_INT_128)
     ccall(
         (:cass_uuid_gen_random, "libcassandra.so.2"),
