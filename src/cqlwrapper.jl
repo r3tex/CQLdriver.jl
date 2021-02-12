@@ -23,7 +23,7 @@ end
 mutable struct CassUuid
     time_and_version::UInt64
     clock_seq_and_node::UInt64
-    CassUuid() = CassUuid(ZERO_UInt64,ZERO_UInt64)
+    CassUuid() = new(ZERO_UInt64,ZERO_UInt64)
 end
 
 function cql_cluster_set_concurrency(cluster::Ptr{CassCluster}, nthreads::Int64)
