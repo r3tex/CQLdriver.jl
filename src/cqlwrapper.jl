@@ -1,7 +1,7 @@
 using Base.Libc
 
 const SIZE_INT_128 = 16
-const ZERO_UInt64 = UInt64(0)
+const ZERO_UINT_64 = UInt64(0)
 
 macro genstruct(x)
     return :(mutable struct $x end)
@@ -23,7 +23,7 @@ end
 mutable struct CassUuid
     time_and_version::UInt64
     clock_seq_and_node::UInt64
-    CassUuid() = new(ZERO_UInt64,ZERO_UInt64)
+    CassUuid() = new(ZERO_UINT_64,ZERO_UINT_64)
 end
 
 function cql_cluster_set_concurrency(cluster::Ptr{CassCluster}, nthreads::Int64)
