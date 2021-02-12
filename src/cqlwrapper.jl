@@ -17,8 +17,13 @@ end
 @genstruct CassValue
 @genstruct CassPrepared
 @genstruct CassBatch
-@genstruct CassUuid
 @genstruct CassUuidGen
+
+mutable struct CassUuid
+    time_and_version::UInt64
+    clock_seq_and_node::UInt64
+    CassUuid() = CassUuid(0x0,0x0)
+end
 
 function cql_cluster_set_concurrency(cluster::Ptr{CassCluster}, nthreads::Int64)
     val = ccall(
@@ -483,13 +488,13 @@ function cql_uuid_gen_free(uuid_gen::Ptr{CassUuidGen})
 end
 
 function cql_uuid_gen_random(uuid_gen::Ptr{CassUuidGen})
-    uuid::Ptr{CassUui}
+    uuid = Ref{CassUuid}(CassUuid())
     ccall(
         (:cass_uuid_gen_random, "libcassandra.so.2"),
         Nothing,
         (Ptr{CassUuidGen}, Ptr{CassUuid}),
         uuid_gen, uuid)
-    return uuid::Ptr{CassUui}
+    return uuid.x
 end
 
 function cql_statement_bind_uuid(statement::Ptr{CassStatement}, pos::Int, data::CassUuid)
