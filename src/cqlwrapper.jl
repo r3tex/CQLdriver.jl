@@ -502,7 +502,7 @@ function cql_statement_bind_uuid(statement::Ptr{CassStatement}, pos::Int, data::
     ccall(
         (:cass_statement_bind_uuid, "libcassandra.so.2"),
         Nothing,
-        (Ptr{CassStatement}, Cint, Ptr{CassUuid}),
+        (Ptr{CassStatement}, Cint, CassUuid),
         statement, pos, data)
 end
 
