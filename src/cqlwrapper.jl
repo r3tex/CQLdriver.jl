@@ -1,7 +1,9 @@
 using Base.Libc
 
 const SIZE_INT_128 = 16
-const ZERO_UINT_64 = UInt64(0)
+
+const CassUuid = UInt128
+const NULL_UUID = UInt128(0)
 
 macro genstruct(x)
     return :(mutable struct $x end)
@@ -19,12 +21,6 @@ end
 @genstruct CassPrepared
 @genstruct CassBatch
 @genstruct CassUuidGen
-
-mutable struct CassUuid
-    time_and_version::UInt64
-    clock_seq_and_node::UInt64
-    CassUuid() = new(ZERO_UINT_64,ZERO_UINT_64)
-end
 
 function cql_cluster_set_concurrency(cluster::Ptr{CassCluster}, nthreads::Int64)
     val = ccall(
@@ -82,8 +78,6 @@ function cql_cluster_set_queue_size(cluster::Ptr{CassCluster}, siz::Int64)
     val = val1 | val2
     return val::UInt16
 end
-
-
 
 function cql_future_error_code(future::Ptr{CassFuture})
     val = ccall(
@@ -489,11 +483,11 @@ function cql_uuid_gen_free(uuid_gen::Ptr{CassUuidGen})
 end
 
 function cql_uuid_gen_random(uuid_gen::Ptr{CassUuidGen})
-    uuid = Ref{CassUuid}(CassUuid())
+    uuid = Ref{CassUuid}(NULL_UUID)
     ccall(
         (:cass_uuid_gen_random, "libcassandra.so.2"),
         Nothing,
-        (Ptr{CassUuidGen}, Ptr{CassUuid}),
+        (Ptr{CassUuidGen}, Ref{CassUuid}),
         uuid_gen, uuid)
     return uuid.x
 end
