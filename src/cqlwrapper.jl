@@ -214,6 +214,15 @@ function cql_result_column_type(result::Ptr{CassResult}, idx::Int64)
     return val::UInt16
 end
 
+function cql_value_get_uuid(val::Ptr{CassValue}, out::Ref{CassUuid})
+    err = ccall(
+            (:cass_value_get_uuid, "libcassandra.so.2"),
+            Cushort,
+            (Ptr{CassValue}, Ref{CassUuid}),
+            val, out)
+    return err::UInt16
+end
+
 function cql_value_get_int8(val::Ptr{CassValue}, out::Ref{Cshort})
     err = ccall(
             (:cass_value_get_int8, "libcassandra.so.2"),
