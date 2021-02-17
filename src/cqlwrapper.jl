@@ -1,7 +1,5 @@
 using Base.Libc
 
-const SIZE_INT_128 = 16
-
 const CassUuid = UInt128
 const NULL_UUID = UInt128(0)
 
