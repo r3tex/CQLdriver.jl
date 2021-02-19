@@ -2,7 +2,8 @@ __precompile__(true)
 
 module CQLdriver
 using DataFrames, Dates, StructArrays, IndexedTables, JuliaDB
-export DataFrames, cqlinit, cqlclose, cqlwrite, cqlread, cqlexec
+
+export DataFrames, cqlinit, cqlclose, cqlwrite, cqlread, cqlexec, cql_uuid_gen_new, cql_uuid_gen_free, cql_uuid_gen_random
 
 include("cqlwrapper.jl")
 const CQL_OK = 0x0000
@@ -168,6 +169,12 @@ retrieve value using the correct type
 # Return
 - `out`: the return value, can by of any type
 """
+function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{CassUuid, Missing}}, strlen::Int)
+	num = Ref{CassUuid}(NULL_UUID)
+	err = cql_value_get_uuid(val, num)
+	return ifelse(err == CQL_OK, num[], missing)
+end
+
 function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{Int64, Missing}}, strlen::Int)
     num = Ref{Clonglong}(0)
     err = cql_value_get_int64(val, num)
@@ -283,6 +290,7 @@ Bind data to a column in a statement for use with batch inserts
 - `Void`:
 """
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Missing) = nothing # default to unset_value
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::CassUuid) = cql_statement_bind_uuid(statement, pos, data)
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::String) = cql_statement_bind_string(statement, pos, data)
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Bool) = cql_statement_bind_bool(statement, pos, data)
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Int8) = cql_statement_bind_int8(statement, pos, data)
