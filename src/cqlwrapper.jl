@@ -1,3 +1,8 @@
+using Base.Libc
+
+const CassUuid = UInt128
+const NULL_UUID = UInt128(0)
+
 macro genstruct(x)
     return :(mutable struct $x end)
 end
@@ -13,6 +18,7 @@ end
 @genstruct CassValue
 @genstruct CassPrepared
 @genstruct CassBatch
+@genstruct CassUuidGen
 
 function cql_cluster_set_concurrency(cluster::Ptr{CassCluster}, nthreads::Int64)
     val = ccall(
@@ -70,8 +76,6 @@ function cql_cluster_set_queue_size(cluster::Ptr{CassCluster}, siz::Int64)
     val = val1 | val2
     return val::UInt16
 end
-
-
 
 function cql_future_error_code(future::Ptr{CassFuture})
     val = ccall(
@@ -208,6 +212,15 @@ function cql_result_column_type(result::Ptr{CassResult}, idx::Int64)
     return val::UInt16
 end
 
+function cql_value_get_uuid(val::Ptr{CassValue}, out::Ref{CassUuid})
+    err = ccall(
+            (:cass_value_get_uuid, "libcassandra.so.2"),
+            Cushort,
+            (Ptr{CassValue}, Ref{CassUuid}),
+            val, out)
+    return err::UInt16
+end
+
 function cql_value_get_int8(val::Ptr{CassValue}, out::Ref{Cshort})
     err = ccall(
             (:cass_value_get_int8, "libcassandra.so.2"),
@@ -250,7 +263,7 @@ function cql_result_column_name(val::Ptr{CassResult}, pos::Int, out::Ref{Ptr{UIn
             Cushort,
             (Ptr{CassResult}, Clonglong, Ref{Ptr{UInt8}}, Ref{Csize_t}),
             val, pos, out, siz)
-    return err::UInt16 
+    return err::UInt16
 end
 
 function cql_value_get_uint32(val::Ptr{CassValue}, out::Ref{Cuint})
@@ -345,7 +358,7 @@ function cql_statement_set_request_timeout(statement::Ptr{CassStatement}, timeou
             Cushort,
             (Ptr{CassStatement}, Clonglong),
             statement, timeout)
-    return err::UInt16    
+    return err::UInt16
 end
 
 function cql_session_execute(session::Ptr{CassSession}, statement::Ptr{CassStatement})
@@ -430,9 +443,9 @@ end
 
 function cql_batch_new(batch_type::UInt8)
     #=
-    CASS_BATCH_TYPE_LOGGED = 0x00 
-    CASS_BATCH_TYPE_UNLOGGED = 0x01 
-    CASS_BATCH_TYPE_COUNTER = 0x02 
+    CASS_BATCH_TYPE_LOGGED = 0x00
+    CASS_BATCH_TYPE_UNLOGGED = 0x01
+    CASS_BATCH_TYPE_COUNTER = 0x02
     =#
     batch = ccall(
                 (:cass_batch_new, "libcassandra.so.2"),
@@ -458,6 +471,40 @@ function cql_prepared_bind(prep::Ptr{CassPrepared})
                     (Ptr{CassPrepared},),
                     prep)
     return statement::Ptr{CassStatement}
+end
+
+function cql_uuid_gen_new()
+    uuid_gen = ccall(
+        (:cass_uuid_gen_new, "libcassandra.so.2"),
+        Ptr{CassUuidGen},
+        ())
+    return uuid_gen::Ptr{CassUuidGen}
+end
+
+function cql_uuid_gen_free(uuid_gen::Ptr{CassUuidGen})
+    ccall(
+        (:cass_uuid_gen_free, "libcassandra.so.2"),
+        Nothing,
+        (Ptr{CassUuidGen},),
+        uuid_gen)
+end
+
+function cql_uuid_gen_random(uuid_gen::Ptr{CassUuidGen})
+    uuid = Ref{CassUuid}(NULL_UUID)
+    ccall(
+        (:cass_uuid_gen_random, "libcassandra.so.2"),
+        Nothing,
+        (Ptr{CassUuidGen}, Ref{CassUuid}),
+        uuid_gen, uuid)
+    return uuid.x
+end
+
+function cql_statement_bind_uuid(statement::Ptr{CassStatement}, pos::Int, data::CassUuid)
+    ccall(
+        (:cass_statement_bind_uuid, "libcassandra.so.2"),
+        Nothing,
+        (Ptr{CassStatement}, Cint, CassUuid),
+        statement, pos, data)
 end
 
 function cql_statement_bind_string(statement::Ptr{CassStatement}, pos::Int, data::String)
@@ -572,4 +619,3 @@ function cql_prepared_free(prep::Ptr{CassPrepared})
         (Ptr{CassPrepared},),
         prep)
 end
-
