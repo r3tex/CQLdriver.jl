@@ -1,7 +1,16 @@
 using Base.Libc
 
-const CassUuid = UInt128
-const NULL_UUID = UInt128(0)
+# Cassandra uses a different ordering of the 8 bytes of UUIDs than Julia does, so we need conversion utilities.
+struct CassUuid
+    underlying_bytes::NTuple{16,UInt8}
+end
+CassUuid(uuid::UUID) = CassUuid(reinterpret(NTuple{16, UInt8}, [uuid.value])[1][cat(13:16, 11:12, 9:10, 1:8, dims=1)])
+UUID(cass_uuid::CassUuid) = UUID(reinterpret(UInt128, [cass_uuid.underlying_bytes[cat(9:16, 7:8, 5:6, 1:4, dims=1)]])[1])
+
+Base.convert(::Type{CassUuid}, uuid::UUID) = CassUuid(uuid)
+Base.convert(::Type{UUID}, cass_uuid::CassUuid) = UUID(cass_uuid)
+
+get_null_cass_uuid_ref()::Ref{CassUuid} = Ref(CassUuid(NTuple{16, UInt8}(0x00 for i in 1:16)))
 
 macro genstruct(x)
     return :(mutable struct $x end)
@@ -490,7 +499,7 @@ function cql_uuid_gen_free(uuid_gen::Ptr{CassUuidGen})
 end
 
 function cql_uuid_gen_random(uuid_gen::Ptr{CassUuidGen})
-    uuid = Ref{CassUuid}(NULL_UUID)
+    uuid = get_null_cass_uuid_ref()
     ccall(
         (:cass_uuid_gen_random, "libcassandra.so.2"),
         Nothing,
@@ -499,12 +508,12 @@ function cql_uuid_gen_random(uuid_gen::Ptr{CassUuidGen})
     return uuid.x
 end
 
-function cql_statement_bind_uuid(statement::Ptr{CassStatement}, pos::Int, data::CassUuid)
+function cql_statement_bind_uuid(statement::Ptr{CassStatement}, pos::Int, data::UUID)
     ccall(
         (:cass_statement_bind_uuid, "libcassandra.so.2"),
         Nothing,
         (Ptr{CassStatement}, Cint, CassUuid),
-        statement, pos, data)
+        statement, pos, CassUuid(data))
 end
 
 function cql_statement_bind_string(statement::Ptr{CassStatement}, pos::Int, data::String)
