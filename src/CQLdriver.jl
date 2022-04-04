@@ -2,6 +2,7 @@ __precompile__(true)
 
 module CQLdriver
 using DataFrames, Dates, StructArrays, IndexedTables, JuliaDB
+using UUIDs: UUID
 
 export DataFrames, cqlinit, cqlclose, cqlwrite, cqlread, cqlexec, cql_uuid_gen_new, cql_uuid_gen_free, cql_uuid_gen_random
 
@@ -134,8 +135,8 @@ function cqlvaltype(result::Ptr{CassResult}, idx::Int64)
     val == 0x0013 ? typ = Int16    : # SMALLINT
     val == 0x0011 ? typ = Date     : # DATE
     val == 0x0004 ? typ = Bool     : # BOOLEAN
-    val == 0x000C ? typ = UInt128  : # UUID
-    val == 0x000F ? typ = UInt128  : # TIMEUUID
+    val == 0x000C ? typ = UUID  : # UUID
+    val == 0x000F ? typ = UUID  : # TIMEUUID
     val == 0x000E ? typ = BigInt   : # VARINT
     val == 0x0010 ? typ = IPAddr   : # INET
     val == 0x0006 ? typ = BigFloat : # DECIMAL
@@ -169,10 +170,10 @@ retrieve value using the correct type
 # Return
 - `out`: the return value, can by of any type
 """
-function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{CassUuid, Missing}}, strlen::Int)
-	num = Ref{CassUuid}(NULL_UUID)
+function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{UUID, Missing}}, strlen::Int)
+	num = get_null_cass_uuid_ref()
 	err = cql_value_get_uuid(val, num)
-	return ifelse(err == CQL_OK, num[], missing)
+	return ifelse(err == CQL_OK, UUID(num[]), missing)
 end
 
 function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{Int64, Missing}}, strlen::Int)
@@ -290,7 +291,7 @@ Bind data to a column in a statement for use with batch inserts
 - `Void`:
 """
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Missing) = nothing # default to unset_value
-cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::CassUuid) = cql_statement_bind_uuid(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::UUID) = cql_statement_bind_uuid(statement, pos, data)
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::String) = cql_statement_bind_string(statement, pos, data)
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Bool) = cql_statement_bind_bool(statement, pos, data)
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Int8) = cql_statement_bind_int8(statement, pos, data)
