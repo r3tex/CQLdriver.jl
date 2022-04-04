@@ -25,6 +25,7 @@ Currently the following data-types are supported:
 |Float32 | FLOAT|
 |Float64 | DOUBLE|
 |DateTime | TIMESTAMP|
+|UUID | UUID|
 
 # Example use
 
