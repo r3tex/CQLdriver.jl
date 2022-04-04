@@ -1,6 +1,6 @@
 name = "CQLdriver"
 uuid = "9d1c9671-1ee4-5573-9bdf-56d4f028cf50"
-version = "0.11.0"
+version = "0.11.1"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
