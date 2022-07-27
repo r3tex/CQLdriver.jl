@@ -302,6 +302,15 @@ function cql_value_get_string(val::Ptr{CassValue}, out::Ref{Ptr{UInt8}}, siz::Re
     return err::UInt16
 end
 
+function cql_value_get_bytes(val::Ptr{CassValue}, out::Ref{Ptr{UInt8}}, siz::Ref{Csize_t})
+    err = ccall(
+            (:cass_value_get_bytes, "libcassandra.so.2"),
+            Cushort,
+            (Ptr{CassValue}, Ref{Ptr{UInt8}}, Ref{Csize_t}),
+            val, out, siz)
+    return err::UInt16
+end
+
 function cql_value_get_float(val::Ptr{CassValue}, out::Ref{Cfloat})
     err = ccall(
             (:cass_value_get_float, "libcassandra.so.2"),
@@ -522,6 +531,14 @@ function cql_statement_bind_string(statement::Ptr{CassStatement}, pos::Int, data
         Nothing,
         (Ptr{CassStatement}, Cint, Cstring),
         statement, pos, data)
+end
+
+function cql_statement_bind_bytes(statement::Ptr{CassStatement}, pos::Int, data::Vector{UInt8})
+    ccall(
+        (:cass_statement_bind_bytes, "libcassandra.so.2"),
+        Nothing,
+        (Ptr{CassStatement}, Cint, Ptr{UInt8}, Cint),
+        statement, pos, data, length(data))
 end
 
 function cql_statement_bind_int8(statement::Ptr{CassStatement}, pos::Int, data::Int8)
