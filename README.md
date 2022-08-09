@@ -13,6 +13,7 @@ Currently the following data-types are supported:
 
 |Julia Type|CQL type|
 | :--- | ---: |
+|Vector{UInt8} | BLOB|
 |String | TEXT|
 |String | VARCHAR|
 |Date | DATE|
@@ -26,6 +27,7 @@ Currently the following data-types are supported:
 |Float64 | DOUBLE|
 |DateTime | TIMESTAMP|
 |UUID | UUID|
+|UUID | TIMEUUID|
 
 # Example use
 
