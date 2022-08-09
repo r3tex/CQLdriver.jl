@@ -123,34 +123,34 @@ Takes a CassResult and returns the type in a given column
 function cqlvaltype(result::Ptr{CassResult}, idx::Int64)
 # http://datastax.github.io/cpp-driver/api/cassandra.h/#enum-CassValueType
     val = cql_result_column_type(result, idx)
-    val == 0x0009 ? typ = Int32    : # INTEGER
-    val == 0x0002 ? typ = Int64    : # BIGINT
-    val == 0x0005 ? typ = Int64    : # COUNTER
-    val == 0x0007 ? typ = Float64  : # DOUBLE
-    val == 0x0008 ? typ = Float32  : # FLOAT
-    val == 0x000A ? typ = String   : # TEXT
-    val == 0x000D ? typ = String      : # VARCHAR
-    val == 0x000B ? typ = DateTime : # TIMESTAMP
-    val == 0x0014 ? typ = Int8     : # TINYINT
-    val == 0x0013 ? typ = Int16    : # SMALLINT
-    val == 0x0011 ? typ = Date     : # DATE
-    val == 0x0004 ? typ = Bool     : # BOOLEAN
-    val == 0x000C ? typ = UUID  : # UUID
-    val == 0x000F ? typ = UUID  : # TIMEUUID
-    val == 0x000E ? typ = BigInt   : # VARINT
-    val == 0x0010 ? typ = IPAddr   : # INET
-    val == 0x0006 ? typ = BigFloat : # DECIMAL
-    val == 0x0012 ? typ = Missing      : # TIME
-    val == 0x0001 ? typ = Missing      : # ASCII
-    val == 0x0003 ? typ = Missing      : # BLOB
-    val == 0xFFFF ? typ = Missing      : # UNKNOWN
-    val == 0x0000 ? typ = Missing      : # CUSTOM
-    val == 0x0015 ? typ = Missing      : # DURATION
-    val == 0x0020 ? typ = Missing      : # LIST
-    val == 0x0021 ? typ = Missing      : # MAP
-    val == 0x0022 ? typ = Missing      : # SET
-    val == 0x0030 ? typ = Missing      : # UDT
-    val == 0x0031 ? typ = Missing      : # TUPLE
+    val == 0x0009 ? typ = Int32         : # INTEGER
+    val == 0x0002 ? typ = Int64         : # BIGINT
+    val == 0x0005 ? typ = Int64         : # COUNTER
+    val == 0x0007 ? typ = Float64       : # DOUBLE
+    val == 0x0008 ? typ = Float32       : # FLOAT
+    val == 0x000A ? typ = String        : # TEXT
+    val == 0x000D ? typ = String        : # VARCHAR
+    val == 0x000B ? typ = DateTime      : # TIMESTAMP
+    val == 0x0014 ? typ = Int8          : # TINYINT
+    val == 0x0013 ? typ = Int16         : # SMALLINT
+    val == 0x0011 ? typ = Date          : # DATE
+    val == 0x0004 ? typ = Bool          : # BOOLEAN
+    val == 0x000C ? typ = UUID          : # UUID
+    val == 0x000F ? typ = UUID          : # TIMEUUID
+    val == 0x000E ? typ = BigInt        : # VARINT
+    val == 0x0010 ? typ = IPAddr        : # INET
+    val == 0x0006 ? typ = BigFloat      : # DECIMAL
+    val == 0x0012 ? typ = Missing       : # TIME
+    val == 0x0001 ? typ = Missing       : # ASCII
+    val == 0x0003 ? typ = Vector{UInt8} : # BLOB
+    val == 0xFFFF ? typ = Missing       : # UNKNOWN
+    val == 0x0000 ? typ = Missing       : # CUSTOM
+    val == 0x0015 ? typ = Missing       : # DURATION
+    val == 0x0020 ? typ = Missing       : # LIST
+    val == 0x0021 ? typ = Missing       : # MAP
+    val == 0x0022 ? typ = Missing       : # SET
+    val == 0x0030 ? typ = Missing       : # UDT
+    val == 0x0031 ? typ = Missing       : # TUPLE
     typ = Missing
     if typ == Missing
         typ = UInt8
@@ -211,7 +211,21 @@ function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{String, Missing}}, strle
     strref = Ref{Ptr{UInt8}}(pointer(str))
     siz = Ref{Csize_t}(sizeof(str))
     err = cql_value_get_string(val, strref, siz)
+    if siz[] > strlen
+        @warn "Length of string $(siz[]) exceeds allocation size (strlen) $(strlen)"
+    end
     return ifelse(err == CQL_OK, unsafe_string(strref[], siz[]), missing)
+end
+
+function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{Vector{UInt8}, Missing}}, strlen::Int)
+    str = Vector{UInt8}(undef, strlen)
+    strref = Ref{Ptr{UInt8}}(pointer(str))
+    siz = Ref{Csize_t}(sizeof(str))
+    err = cql_value_get_bytes(val, strref, siz)
+    if siz[] > strlen
+        @warn "Length of string $(siz[]) exceeds allocation size (strlen) $(strlen)"
+    end
+    return ifelse(err == CQL_OK, copy(unsafe_wrap(Vector{UInt8}, strref[], siz[])), missing)
 end
 
 function cqlgetvalue(val::Ptr{CassValue}, T::Type{Union{Float64, Missing}}, strlen::Int)
@@ -300,6 +314,7 @@ cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Int32) = cql_sta
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Int64) = cql_statement_bind_int64(statement, pos, data)
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Float32) = cql_statement_bind_float(statement, pos, data)
 cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Float64) = cql_statement_bind_double(statement, pos, data)
+cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Vector{UInt8}) = cql_statement_bind_bytes(statement, pos, data)
 
 function cqlstatementbind(statement::Ptr{CassStatement}, pos::Int, data::Date)
     d = parse(UInt32, replace(string(data),"-" => ""))
