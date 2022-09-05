@@ -5,7 +5,7 @@ if !Sys.islinux()
 end
 
 version = "2.11.0"
-const has_driver = !isempty(Libdl.find_library(["libcassandra"]))
+const has_driver = !isempty(Libdl.find_library(["libcassandra.so.2"]))
 const has_yum = try success(`yum --version`) catch e false end
 const has_apt = try success(`apt-get -v`) && success(`apt-cache -v`) catch e false end
 
