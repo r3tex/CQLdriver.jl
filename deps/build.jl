@@ -1,4 +1,8 @@
-using Libdl
+try
+    using Libdl: Libdl
+catch
+    using Base.Libc: Libdl
+end
 
 if !Sys.islinux()
     error("This package does not support OSX or Windows")
