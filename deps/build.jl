@@ -27,7 +27,7 @@ elseif has_yum
 elseif has_apt
     ubuntu_version = chomp(read(pipeline(`cat /etc/os-release`, `grep -Eo "VERSION_ID=\"[0-9\.]+\""`, `grep -Eo "[^\"]+"`, `grep -E "[0-9.]+"`), String))
     # The latest available downloads are for version 18.04.
-    if parse(Integer, ubuntu_version[1:2]) > 18
+    if parse(Int, ubuntu_version[1:2]) > 18
         ubuntu_version = "18.04"
     end
     cass_url = "http://downloads.datastax.com/cpp-driver/ubuntu/$(ubuntu_version)/cassandra/v" * version * "/"
