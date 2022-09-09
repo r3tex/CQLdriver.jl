@@ -26,6 +26,10 @@ elseif has_yum
     !inst && error("Unable to install CPP driver.")
 elseif has_apt
     ubuntu_version = chomp(read(pipeline(`cat /etc/os-release`, `grep -Eo "VERSION_ID=\"[0-9\.]+\""`, `grep -Eo "[^\"]+"`, `grep -E "[0-9.]+"`), String))
+    # The latest available downloads are for version 18.04.
+    if parse(Integer, ubuntu_version[1:2]) > 18
+        ubuntu_version = "18.04"
+    end
     cass_url = "http://downloads.datastax.com/cpp-driver/ubuntu/$(ubuntu_version)/cassandra/v" * version * "/"
     cass_file = "cassandra-cpp-driver_" * version * "-1_amd64.deb"
     cass_source = cass_url * cass_file
