@@ -1,7 +1,7 @@
 __precompile__(true)
 
 module CQLdriver
-using DataFrames, Dates, StructArrays, IndexedTables, JuliaDB
+using DataFrames, Dates, StructArrays, IndexedTables
 using UUIDs: UUID
 
 export DataFrames, cqlinit, cqlclose, cqlwrite, cqlread, cqlexec, cql_uuid_gen_new, cql_uuid_gen_free, cql_uuid_gen_random
@@ -728,7 +728,7 @@ function cqlwrite(s::Ptr{CassSession}, cass_table::String, data::Union{DataFrame
     return err::UInt16
 end
 
-function cqlwrite(s::Ptr{CassSession}, cass_table::String, data::JuliaDB.IndexedTable; paritionsize::Int=100000, batchsize::Int=500, retries::Int=5, counter::Bool=false)
+function cqlwrite(s::Ptr{CassSession}, cass_table::String, data::IndexedTable; paritionsize::Int=100000, batchsize::Int=500, retries::Int=5, counter::Bool=false)
     errs = Vector{UInt16}()
     for tbl = Iterators.partition(data, paritionsize)
         push!(errs, cqlwrite(s, cass_table, tbl; batchsize=batchsize, retries=retries, counter=counter))
